@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { isStrongPassword, isValidEmail } from "../utils/validation";
 import BrandLogo from "../components/ui/BrandLogo";
 import AppIcon from "../components/ui/AppIcon";
+import { getApiErrorMessage } from "../services/http";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -32,7 +33,7 @@ export default function LoginPage() {
       await login(form.email, form.password);
       navigate("/app");
     } catch (err) {
-      setError(err?.response?.data?.message || "Login failed");
+      setError(getApiErrorMessage(err, "Login failed"));
     } finally {
       setLoading(false);
     }

@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { isStrongPassword, isValidEmail, isValidName } from "../utils/validation";
 import BrandLogo from "../components/ui/BrandLogo";
 import AppIcon from "../components/ui/AppIcon";
+import { getApiErrorMessage } from "../services/http";
 
 const VALID_ROLES = new Set(["Admin", "Developer", "Tester"]);
 
@@ -45,7 +46,7 @@ export default function RegisterPage() {
       await register(form);
       navigate("/app");
     } catch (err) {
-      setError(err?.response?.data?.message || "Registration failed");
+      setError(getApiErrorMessage(err, "Registration failed"));
     } finally {
       setLoading(false);
     }
