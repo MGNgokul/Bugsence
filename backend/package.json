@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "BugSense backend API",
   "main": "server/server.js",
+  "engines": {
+    "node": ">=20 <23"
+  },
   "scripts": {
     "dev": "nodemon server/server.js",
     "start": "node server/server.js"
