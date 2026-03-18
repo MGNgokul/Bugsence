@@ -18,16 +18,24 @@ export function getApiErrorMessage(error, fallbackMessage = "Request failed") {
   if (serverMessage) return serverMessage;
 
   const requestUrl = String(error?.config?.url || "");
+  const isApiRequest = requestUrl.startsWith("/api/");
+  const publicServiceMessage = "Service is temporarily unavailable. Please try again later.";
 
-  if (import.meta.env.PROD && !hasProductionApiBase && requestUrl.startsWith("/api/")) {
-    return "Live API not configured. Deploy the backend and set VITE_API_BASE_URL in GitHub Actions secrets.";
+  if (import.meta.env.PROD && !hasProductionApiBase && isApiRequest) {
+    return publicServiceMessage;
   }
 
   if (error?.code === "ERR_NETWORK") {
+    if (import.meta.env.PROD) {
+      return publicServiceMessage;
+    }
     return "Cannot reach the backend API. Check that the backend is running and the API URL is correct.";
   }
 
-  if (error?.response?.status === 404 && requestUrl.startsWith("/api/")) {
+  if (error?.response?.status === 404 && isApiRequest) {
+    if (import.meta.env.PROD) {
+      return publicServiceMessage;
+    }
     return "API route not found. Check the backend deployment URL.";
   }
 
