@@ -64,6 +64,15 @@ npm run dev
 
 Set `VITE_API_BASE_URL` in frontend env if backend is not on `http://localhost:5000`.
 
+## GitHub Pages
+
+The repository includes a GitHub Pages workflow for the frontend.
+
+- Push to `main` and GitHub Actions will build `frontend/` and publish it to Pages.
+- The Pages URL will be `https://mgngokul.github.io/Bugsence/`.
+- For API calls to work on the live site, add a repository secret named `VITE_API_BASE_URL` that points to your deployed backend URL.
+- GitHub Pages only hosts the frontend. The Express/MongoDB backend must be deployed separately on a service such as Render, Railway, or a VPS.
+
 ### AI Suggestions
 
 BugSense can generate AI bug-fix suggestions through the OpenAI Responses API.
