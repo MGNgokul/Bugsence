@@ -2,11 +2,22 @@ const OpenAI = require("openai");
 const { categorizeBug } = require("./categorizeBug");
 
 const CONFIDENCE_LEVELS = new Set(["Low", "Medium", "High"]);
+const PRIORITY_LEVELS = ["Low", "Medium", "High", "Critical"];
+const SEVERITY_LEVELS = ["Low", "Medium", "High", "Critical"];
+const CATEGORY_LEVELS = ["UI Bug", "Backend Bug", "Performance Issue", "Security Bug", "Database Bug", "Other"];
+const PRIORITY_LEVEL_SET = new Set(PRIORITY_LEVELS);
+const SEVERITY_LEVEL_SET = new Set(SEVERITY_LEVELS);
+const CATEGORY_LEVEL_SET = new Set(CATEGORY_LEVELS);
 let cachedClient = null;
 let cachedClientKey = "";
 
 function normalize(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeEnum(value, allowedSet, fallback) {
+  const normalizedValue = normalize(value);
+  return allowedSet.has(normalizedValue) ? normalizedValue : fallback;
 }
 
 function getOpenAiConfig() {
@@ -62,6 +73,38 @@ function pushUnique(list, ...items) {
   });
 }
 
+function sanitizeHistory(history = []) {
+  if (!Array.isArray(history)) {
+    return [];
+  }
+
+  return history
+    .map((item) => {
+      const role = item?.role === "assistant" ? "assistant" : item?.role === "user" ? "user" : "";
+      const text = normalize(item?.text || item?.content);
+
+      if (!role || !text) {
+        return null;
+      }
+
+      return { role, text };
+    })
+    .filter(Boolean)
+    .slice(-6);
+}
+
+function formatConversationHistory(history = []) {
+  const normalizedHistory = sanitizeHistory(history);
+
+  if (normalizedHistory.length === 0) {
+    return "No previous conversation.";
+  }
+
+  return normalizedHistory
+    .map((item, index) => `${item.role === "assistant" ? "Assistant" : "User"} ${index + 1}: ${item.text}`)
+    .join("\n");
+}
+
 function buildContext(input = {}) {
   const title = normalize(input.title);
   const description = normalize(input.description);
@@ -104,6 +147,32 @@ function withMetadata(suggestion, meta = {}) {
   };
 }
 
+function withAnswerMetadata(answer, meta = {}) {
+  return {
+    reply: normalize(answer.reply),
+    confidence: CONFIDENCE_LEVELS.has(answer.confidence) ? answer.confidence : "Low",
+    followUps: Array.isArray(answer.followUps) ? answer.followUps.filter(Boolean).map((item) => normalize(item)).slice(0, 4) : [],
+    source: meta.source || answer.source || "Rule-based fallback",
+    model: meta.model === undefined ? answer.model || null : meta.model,
+    generatedAt: new Date()
+  };
+}
+
+function withTriageMetadata(triage, meta = {}) {
+  return {
+    summary: normalize(triage.summary),
+    rationale: normalize(triage.rationale),
+    category: normalizeEnum(triage.category, CATEGORY_LEVEL_SET, "Other"),
+    priority: normalizeEnum(triage.priority, PRIORITY_LEVEL_SET, "Medium"),
+    severity: normalizeEnum(triage.severity, SEVERITY_LEVEL_SET, "Medium"),
+    confidence: CONFIDENCE_LEVELS.has(triage.confidence) ? triage.confidence : "Low",
+    signals: Array.isArray(triage.signals) ? triage.signals.filter(Boolean).map((item) => normalize(item)).slice(0, 5) : [],
+    source: meta.source || triage.source || "Rule-based fallback",
+    model: meta.model === undefined ? triage.model || null : meta.model,
+    generatedAt: new Date()
+  };
+}
+
 function createDefaultSuggestion(context) {
   const signals = [];
 
@@ -128,6 +197,42 @@ function createDefaultSuggestion(context) {
         "Retest after the fix using the exact same expected and actual scenario."
       ],
       signals: signals.slice(0, 4)
+    },
+    { source: "Rule-based fallback", model: null }
+  );
+}
+
+function createDefaultAnswer(context, question = "") {
+  const topic = normalize(question) || "the bug";
+  return withAnswerMetadata(
+    {
+      reply:
+        `I need a little more detail to confidently answer about ${topic}. Add clearer reproduction steps, expected result, and actual result so I can narrow the failure path.`,
+      confidence: "Low",
+      followUps: [
+        "What exact step fails first?",
+        "What response or console error do you see?",
+        "What should happen instead?"
+      ]
+    },
+    { source: "Rule-based fallback", model: null }
+  );
+}
+
+function createDefaultTriage(context) {
+  return withTriageMetadata(
+    {
+      summary: "More detail is needed before a confident triage recommendation can be made.",
+      rationale:
+        "Add clearer reproduction steps, actual result, and impact details so the bug can be categorized and risk-scored more accurately.",
+      category: context.category || "Other",
+      priority: "Medium",
+      severity: "Medium",
+      confidence: "Low",
+      signals: [
+        context.title ? `Title noted: ${context.title}.` : "The current title is still limited.",
+        context.description ? "A short description was provided." : "A clearer description is still needed."
+      ]
     },
     { source: "Rule-based fallback", model: null }
   );
@@ -345,6 +450,198 @@ function buildRuleBasedSuggestion(input = {}) {
   );
 }
 
+function buildRuleBasedAssistantAnswer(input = {}, question = "", history = []) {
+  const context = buildContext(input);
+  const suggestion = buildRuleBasedSuggestion(context);
+  const normalizedQuestion = normalize(question).toLowerCase();
+  const normalizedHistory = sanitizeHistory(history);
+  const lastAssistantMessage = normalizedHistory
+    .slice()
+    .reverse()
+    .find((item) => item.role === "assistant")?.text;
+
+  if (!normalizedQuestion) {
+    return createDefaultAnswer(context, question);
+  }
+
+  const replyParts = [];
+
+  if (hasAny(normalizedQuestion, ["why", "cause", "root cause", "reason"])) {
+    replyParts.push(`Most likely cause: ${suggestion.likelyCause}`);
+  } else if (hasAny(normalizedQuestion, ["fix", "solve", "resolution", "how do i fix", "how to fix"])) {
+    replyParts.push(`Best next fix direction: ${suggestion.fixes.slice(0, 2).join(" ")}`);
+  } else if (hasAny(normalizedQuestion, ["test", "validate", "qa", "verify"])) {
+    replyParts.push(`Best validation path: ${suggestion.validationChecks.slice(0, 2).join(" ")}`);
+  } else if (hasAny(normalizedQuestion, ["priority", "severity", "urgent", "risk"])) {
+    replyParts.push(
+      `Current risk signal: priority is ${context.priority} and severity is ${context.severity}. ${suggestion.summary}`
+    );
+  } else if (hasAny(normalizedQuestion, ["version", "release", "introduced", "fixed"])) {
+    replyParts.push(
+      `Version context: introduced in ${context.versionIntroduced || "an unknown version"} and fixed in ${context.versionFixed || "no tracked fixed version yet"}.`
+    );
+    replyParts.push(suggestion.summary);
+  } else if (hasAny(normalizedQuestion, ["reproduce", "steps", "repeat"])) {
+    replyParts.push(
+      context.stepsToReproduce
+        ? `Current reproduction notes: ${context.stepsToReproduce}`
+        : "The report still needs clearer reproduction steps before the bug can be isolated reliably."
+    );
+    replyParts.push(suggestion.validationChecks[0] || "Retest with a single consistent reproduction path.");
+  } else if (hasAny(normalizedQuestion, ["more detail", "explain more", "expand", "next", "what next"]) && lastAssistantMessage) {
+    replyParts.push(`From the previous answer: ${lastAssistantMessage}`);
+    replyParts.push(`Best next step: ${suggestion.fixes[0] || "Add clearer reproduction and error details."}`);
+  } else {
+    replyParts.push(suggestion.summary);
+    replyParts.push(`Most likely cause: ${suggestion.likelyCause}`);
+    replyParts.push(`Best next step: ${suggestion.fixes[0]}`);
+  }
+
+  if (replyParts.length === 0) {
+    return createDefaultAnswer(context, question);
+  }
+
+  return withAnswerMetadata(
+    {
+      reply: replyParts.join(" "),
+      confidence: suggestion.confidence,
+      followUps: [
+        "What is the likely root cause?",
+        "Which fix step should I try first?",
+        "How should I validate the fix?",
+        "What detail is still missing in this bug report?"
+      ]
+    },
+    { source: "Rule-based fallback", model: null }
+  );
+}
+
+function buildRuleBasedTriage(input = {}) {
+  const context = buildContext(input);
+  const text = [
+    context.title,
+    context.description,
+    context.stepsToReproduce,
+    context.expectedResult,
+    context.actualResult,
+    context.versionIntroduced,
+    context.versionFixed
+  ]
+    .join(" ")
+    .toLowerCase();
+  const detailScore = [
+    context.title,
+    context.description,
+    context.stepsToReproduce,
+    context.expectedResult,
+    context.actualResult
+  ].filter(Boolean).length;
+
+  if (detailScore === 0) {
+    return createDefaultTriage(context);
+  }
+
+  const signals = [];
+  let category = normalizeEnum(input.category, CATEGORY_LEVEL_SET, "");
+  let severity = "Medium";
+  let priority = "Medium";
+
+  if (!category) {
+    if (hasAny(text, ["database", "mongo", "mongodb", "query", "schema", "sql", "persist", "save record"])) {
+      category = "Database Bug";
+      pushUnique(signals, "Database or persistence wording was detected.");
+    } else if (hasAny(text, ["401", "403", "unauthorized", "forbidden", "auth", "token", "session", "permission"])) {
+      category = "Security Bug";
+      pushUnique(signals, "Authentication or permission wording was detected.");
+    } else if (hasAny(text, ["slow", "lag", "freeze", "stuck", "spinner", "performance", "memory", "cpu"])) {
+      category = "Performance Issue";
+      pushUnique(signals, "Performance impact wording was detected.");
+    } else if (hasAny(text, ["500", "api", "server", "endpoint", "request failed", "timeout", "timed out", "internal server error"])) {
+      category = "Backend Bug";
+      pushUnique(signals, "Backend failure wording was detected.");
+    } else if (hasAny(text, ["ui", "button", "layout", "modal", "responsive", "alignment", "css", "navbar", "menu", "screen"])) {
+      category = "UI Bug";
+      pushUnique(signals, "UI-focused wording was detected.");
+    } else {
+      category = normalizeEnum(categorizeBug([context.title, context.description, context.actualResult].filter(Boolean).join(" ")), CATEGORY_LEVEL_SET, "Other");
+    }
+  }
+
+  if (context.versionIntroduced) {
+    pushUnique(signals, `Introduced in tracked version ${context.versionIntroduced}.`);
+  }
+
+  if (hasAny(text, ["security breach", "vulnerability", "data loss", "production down", "payment failed", "all users blocked"])) {
+    severity = "Critical";
+    pushUnique(signals, "Critical-impact wording was detected.");
+  } else if (
+    hasAny(text, ["500", "crash", "cannot login", "can't login", "cannot submit", "cannot save", "blocked", "unauthorized", "forbidden", "timeout", "timed out"]) ||
+    (category === "Security Bug" && hasAny(text, ["auth", "token", "session", "permission"]))
+  ) {
+    severity = "High";
+    pushUnique(signals, "The issue appears to block or break an important workflow.");
+  } else if (hasAny(text, ["alignment", "spacing", "cosmetic", "typo", "padding", "minor ui"])) {
+    severity = "Low";
+    pushUnique(signals, "The issue reads like a cosmetic or low-impact defect.");
+  } else if (category === "Performance Issue" || category === "Backend Bug") {
+    severity = "Medium";
+  }
+
+  if (severity === "Critical") {
+    priority = hasAny(text, ["payment", "production", "security", "data loss"]) ? "Critical" : "High";
+  } else if (
+    severity === "High" ||
+    hasAny(text, ["login", "release blocker", "dashboard", "submit", "save", "core flow", "customer"])
+  ) {
+    priority = hasAny(text, ["production", "payment", "all users", "security", "release blocker"]) ? "Critical" : "High";
+  } else if (severity === "Low") {
+    priority = "Low";
+  }
+
+  if (category === "UI Bug" && hasAny(text, ["alignment", "spacing", "cosmetic", "typo"]) && severity !== "High") {
+    severity = "Low";
+    priority = "Low";
+  }
+
+  if (detailScore >= 4) {
+    pushUnique(signals, "The report includes enough detail to make a stronger triage recommendation.");
+  }
+
+  const confidenceScore = detailScore + Math.min(2, signals.length);
+  const confidence = confidenceScore >= 6 ? "High" : confidenceScore >= 4 ? "Medium" : "Low";
+  const summary = `${priority} priority ${category.toLowerCase()} recommendation with ${severity.toLowerCase()} severity.`;
+  const rationaleParts = [
+    `The bug reads like a ${category.toLowerCase()} issue based on the current report details.`,
+    severity === "Critical"
+      ? "The impact appears critical because the report signals a severe outage, security exposure, or major data risk."
+      : severity === "High"
+        ? "Severity is high because the report suggests a broken or blocked workflow."
+        : severity === "Low"
+          ? "Severity is low because the report looks cosmetic or narrowly scoped."
+          : "Severity remains medium because the issue is real but the current impact looks more contained.",
+    priority === "Critical"
+      ? "Priority should be critical because it affects a high-risk or immediately disruptive user flow."
+      : priority === "High"
+        ? "Priority should be high because the defect appears to hit an important day-to-day workflow."
+        : priority === "Low"
+          ? "Priority can stay low because the defect appears cosmetic and non-blocking."
+          : "Priority can stay medium until broader impact is confirmed."
+  ];
+
+  return withTriageMetadata(
+    {
+      summary,
+      rationale: rationaleParts.join(" "),
+      category,
+      priority,
+      severity,
+      confidence,
+      signals: signals.length > 0 ? signals : ["The report still needs stronger impact signals for confident triage."]
+    },
+    { source: "Rule-based fallback", model: null }
+  );
+}
+
 function createResponseSchema() {
   return {
     type: "object",
@@ -376,6 +673,46 @@ function createResponseSchema() {
   };
 }
 
+function createAssistantResponseSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["reply", "confidence", "followUps"],
+    properties: {
+      reply: { type: "string" },
+      confidence: { type: "string", enum: ["Low", "Medium", "High"] },
+      followUps: {
+        type: "array",
+        minItems: 2,
+        maxItems: 4,
+        items: { type: "string" }
+      }
+    }
+  };
+}
+
+function createTriageResponseSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["summary", "rationale", "category", "priority", "severity", "confidence", "signals"],
+    properties: {
+      summary: { type: "string" },
+      rationale: { type: "string" },
+      category: { type: "string", enum: CATEGORY_LEVELS },
+      priority: { type: "string", enum: PRIORITY_LEVELS },
+      severity: { type: "string", enum: SEVERITY_LEVELS },
+      confidence: { type: "string", enum: ["Low", "Medium", "High"] },
+      signals: {
+        type: "array",
+        minItems: 2,
+        maxItems: 5,
+        items: { type: "string" }
+      }
+    }
+  };
+}
+
 function buildPrompt(context) {
   return [
     "Analyze this software bug report and return concise, implementation-focused fix guidance.",
@@ -392,6 +729,50 @@ function buildPrompt(context) {
     `Version fixed: ${context.versionFixed || "Not fixed"}`,
     "",
     "Write for a software team. Keep suggestions practical, specific, and testable.",
+    "Do not mention being an AI model. Do not include markdown."
+  ].join("\n");
+}
+
+function buildAssistantPrompt(context, question, history = []) {
+  return [
+    "You are BugSense AI, a concise bug-triage assistant for software teams.",
+    "Answer the user's question only from the bug details provided below.",
+    "If information is missing, say what is missing instead of inventing details.",
+    "",
+    `Title: ${context.title || "Unknown"}`,
+    `Description: ${context.description || "Unknown"}`,
+    `Steps to reproduce: ${context.stepsToReproduce || "Not provided"}`,
+    `Expected result: ${context.expectedResult || "Not provided"}`,
+    `Actual result: ${context.actualResult || "Not provided"}`,
+    `Priority: ${context.priority}`,
+    `Severity: ${context.severity}`,
+    `Category: ${context.category}`,
+    `Version introduced: ${context.versionIntroduced || "Unknown"}`,
+    `Version fixed: ${context.versionFixed || "Not fixed"}`,
+    "",
+    "Recent conversation:",
+    formatConversationHistory(history),
+    "",
+    `User question: ${question}`,
+    "",
+    "Write short, specific, engineering-focused guidance."
+  ].join("\n");
+}
+
+function buildTriagePrompt(context) {
+  return [
+    "Review this software bug report and recommend bug triage labels.",
+    "Choose the most likely category, priority, and severity for an engineering team.",
+    "Keep the summary and rationale concise, practical, and tied to the bug details.",
+    "",
+    `Title: ${context.title || "Unknown"}`,
+    `Description: ${context.description || "Unknown"}`,
+    `Steps to reproduce: ${context.stepsToReproduce || "Not provided"}`,
+    `Expected result: ${context.expectedResult || "Not provided"}`,
+    `Actual result: ${context.actualResult || "Not provided"}`,
+    `Version introduced: ${context.versionIntroduced || "Unknown"}`,
+    `Version fixed: ${context.versionFixed || "Not fixed"}`,
+    "",
     "Do not mention being an AI model. Do not include markdown."
   ].join("\n");
 }
@@ -431,6 +812,23 @@ function mergeSuggestion(rawSuggestion, fallbackSuggestion, meta = {}) {
       fixes: pickArray(normalized.fixes, fallbackSuggestion.fixes),
       validationChecks: pickArray(normalized.validationChecks, fallbackSuggestion.validationChecks),
       signals: pickArray(normalized.signals, fallbackSuggestion.signals)
+    },
+    meta
+  );
+}
+
+function mergeTriageSuggestion(rawTriage, fallbackTriage, meta = {}) {
+  const normalized = rawTriage && typeof rawTriage === "object" ? rawTriage : {};
+
+  return withTriageMetadata(
+    {
+      summary: normalize(normalized.summary) || fallbackTriage.summary,
+      rationale: normalize(normalized.rationale) || fallbackTriage.rationale,
+      category: normalizeEnum(normalized.category, CATEGORY_LEVEL_SET, fallbackTriage.category),
+      priority: normalizeEnum(normalized.priority, PRIORITY_LEVEL_SET, fallbackTriage.priority),
+      severity: normalizeEnum(normalized.severity, SEVERITY_LEVEL_SET, fallbackTriage.severity),
+      confidence: CONFIDENCE_LEVELS.has(normalized.confidence) ? normalized.confidence : fallbackTriage.confidence,
+      signals: Array.isArray(normalized.signals) && normalized.signals.length > 0 ? normalized.signals : fallbackTriage.signals
     },
     meta
   );
@@ -483,6 +881,110 @@ async function requestOpenAiSuggestion(context, fallbackSuggestion) {
   });
 }
 
+async function requestOpenAiTriageSuggestion(context, fallbackTriage) {
+  const { model } = getOpenAiConfig();
+  const client = getOpenAiClient();
+
+  if (!client) {
+    return null;
+  }
+
+  const response = await client.responses.create({
+    model,
+    store: false,
+    instructions:
+      "You are a senior software engineer helping BugSense users classify reported bugs. Return only the requested JSON schema.",
+    input: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: buildTriagePrompt(context)
+          }
+        ]
+      }
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "bug_triage_recommendation",
+        strict: true,
+        schema: createTriageResponseSchema()
+      }
+    },
+    max_output_tokens: 500
+  });
+
+  const outputText = extractOutputText(response);
+
+  if (!outputText) {
+    throw new Error("OpenAI returned an empty triage payload.");
+  }
+
+  const parsed = JSON.parse(outputText);
+  return mergeTriageSuggestion(parsed, fallbackTriage, {
+    source: "OpenAI",
+    model: response.model || model
+  });
+}
+
+async function requestOpenAiAssistantAnswer(context, question, history, fallbackAnswer) {
+  const { model } = getOpenAiConfig();
+  const client = getOpenAiClient();
+
+  if (!client) {
+    return null;
+  }
+
+  const response = await client.responses.create({
+    model,
+    store: false,
+    instructions:
+      "You are a senior software engineer helping BugSense users investigate bugs. Return only the requested JSON schema.",
+    input: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: buildAssistantPrompt(context, question, history)
+          }
+        ]
+      }
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "bug_assistant_answer",
+        strict: true,
+        schema: createAssistantResponseSchema()
+      }
+    },
+    max_output_tokens: 500
+  });
+
+  const outputText = extractOutputText(response);
+
+  if (!outputText) {
+    throw new Error("OpenAI returned an empty assistant payload.");
+  }
+
+  const parsed = JSON.parse(outputText);
+
+  return withAnswerMetadata(
+    {
+      reply: normalize(parsed.reply) || fallbackAnswer.reply,
+      confidence: CONFIDENCE_LEVELS.has(parsed.confidence) ? parsed.confidence : fallbackAnswer.confidence,
+      followUps: Array.isArray(parsed.followUps) && parsed.followUps.length > 0 ? parsed.followUps : fallbackAnswer.followUps
+    },
+    {
+      source: "OpenAI",
+      model: response.model || model
+    }
+  );
+}
+
 async function suggestFix(input = {}) {
   const context = buildContext(input);
   const fallbackSuggestion = buildRuleBasedSuggestion(context);
@@ -501,4 +1003,46 @@ async function suggestFix(input = {}) {
   }
 }
 
-module.exports = { suggestFix, getAiProviderStatus };
+async function suggestBugTriage(input = {}) {
+  const context = buildContext(input);
+  const fallbackTriage = buildRuleBasedTriage(context);
+  const { apiKey } = getOpenAiConfig();
+
+  if (!apiKey) {
+    return fallbackTriage;
+  }
+
+  try {
+    const aiTriage = await requestOpenAiTriageSuggestion(context, fallbackTriage);
+    return aiTriage || fallbackTriage;
+  } catch (error) {
+    console.warn("AI triage fallback triggered:", error.message);
+    return fallbackTriage;
+  }
+}
+
+async function answerBugQuestion(input = {}, question = "", history = []) {
+  const normalizedQuestion = normalize(question);
+  const context = buildContext(input);
+  const normalizedHistory = sanitizeHistory(history);
+  const fallbackAnswer = buildRuleBasedAssistantAnswer(context, normalizedQuestion, normalizedHistory);
+  const { apiKey } = getOpenAiConfig();
+
+  if (!normalizedQuestion) {
+    return createDefaultAnswer(context, question);
+  }
+
+  if (!apiKey) {
+    return fallbackAnswer;
+  }
+
+  try {
+    const aiAnswer = await requestOpenAiAssistantAnswer(context, normalizedQuestion, normalizedHistory, fallbackAnswer);
+    return aiAnswer || fallbackAnswer;
+  } catch (error) {
+    console.warn("AI assistant fallback triggered:", error.message);
+    return fallbackAnswer;
+  }
+}
+
+module.exports = { suggestFix, suggestBugTriage, answerBugQuestion, getAiProviderStatus };

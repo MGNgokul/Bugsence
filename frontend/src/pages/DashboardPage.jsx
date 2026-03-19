@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { analyticsApi } from "../services/analyticsService";
 import AppIcon from "../components/ui/AppIcon";
+import { getApiErrorMessage } from "../services/http";
 
 const colors = {
   Critical: "var(--chart-4)",
@@ -35,6 +36,19 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reportError, setReportError] = useState("");
+  const [downloadingReport, setDownloadingReport] = useState("");
+
+  function downloadBlob(blob, filename) {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  }
 
   const load = async () => {
     setLoading(true);
@@ -54,6 +68,35 @@ export default function DashboardPage() {
   useEffect(() => {
     load();
   }, []);
+
+  async function downloadCsvReport() {
+    setDownloadingReport("csv");
+    setReportError("");
+
+    try {
+      const { blob, filename } = await analyticsApi.downloadCsv();
+      downloadBlob(blob, filename);
+    } catch (err) {
+      setReportError(getApiErrorMessage(err, "Could not download analytics report."));
+    } finally {
+      setDownloadingReport("");
+    }
+  }
+
+  async function downloadJsonReport() {
+    setDownloadingReport("json");
+    setReportError("");
+
+    try {
+      const report = await analyticsApi.report();
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+      downloadBlob(blob, `bugsense-analytics-report-${Date.now()}.json`);
+    } catch (err) {
+      setReportError(getApiErrorMessage(err, "Could not generate analytics report."));
+    } finally {
+      setDownloadingReport("");
+    }
+  }
 
   if (loading) {
     return (
@@ -225,7 +268,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page stagger-list">
       <section className="card dashboard-hero">
         <div className="dashboard-hero-copy">
           <p className="dashboard-eyebrow">Executive overview</p>
@@ -262,17 +305,27 @@ export default function DashboardPage() {
               <AppIcon name="bug" />
               Open Backlog
             </Link>
+            <button type="button" className="btn-secondary" onClick={downloadCsvReport} disabled={downloadingReport === "csv"}>
+              <AppIcon name="stats" size={14} />
+              {downloadingReport === "csv" ? "Preparing CSV..." : "Download CSV"}
+            </button>
+            <button type="button" className="btn-secondary" onClick={downloadJsonReport} disabled={downloadingReport === "json"}>
+              <AppIcon name="shield" size={14} />
+              {downloadingReport === "json" ? "Preparing JSON..." : "Download JSON"}
+            </button>
           </div>
+
+          {reportError ? <p className="error">{reportError}</p> : null}
         </div>
 
-        <aside className="dashboard-hero-side">
+        <aside className="dashboard-hero-side stagger-list">
           <article className="dashboard-confidence-card">
             <p className="dashboard-panel-label">Release confidence</p>
             <strong>{releaseConfidence}%</strong>
             <span>{releaseRisk >= 55 ? "Needs attention before release" : "Stable enough to keep momentum"}</span>
           </article>
 
-          <div className="dashboard-progress-list">
+          <div className="dashboard-progress-list stagger-list">
             {scoreTracks.map((item) => (
               <div className="dashboard-progress-item" key={item.key}>
                 <div className="dashboard-progress-meta">
@@ -386,7 +439,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="dashboard-signal-list">
+          <div className="dashboard-signal-list stagger-list">
             {commandSignals.map((signal) => (
               <article className={`dashboard-signal-card tone-${signal.tone}`} key={signal.key}>
                 <p>{signal.title}</p>
@@ -405,7 +458,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="dashboard-insight-list">
+          <div className="dashboard-insight-list stagger-list">
             {focusItems.map((item) => (
               <div className="dashboard-insight-item" key={item.title}>
                 <span className="icon-chip">

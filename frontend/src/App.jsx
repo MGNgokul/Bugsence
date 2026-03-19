@@ -11,6 +11,8 @@ import MyWorkPage from "./pages/MyWorkPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import ActivityPage from "./pages/ActivityPage";
 import TeamPage from "./pages/TeamPage";
+import VersionsPage from "./pages/VersionsPage";
+import ProfilePage from "./pages/ProfilePage";
 import CapabilitiesPage from "./pages/CapabilitiesPage";
 import PreviewPage from "./pages/PreviewPage";
 import PricingPage from "./pages/PricingPage";
@@ -64,6 +66,7 @@ export default function App() {
         <Route path="bugs/:id" element={<BugDetailsPage />} />
         <Route path="my-work" element={<MyWorkPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
         <Route
           path="activity"
           element={(
@@ -77,6 +80,14 @@ export default function App() {
           element={(
             <RoleRoute permission={PERMISSIONS.TEAM}>
               <TeamPage />
+            </RoleRoute>
+          )}
+        />
+        <Route
+          path="versions"
+          element={(
+            <RoleRoute permission={PERMISSIONS.VERSIONS}>
+              <VersionsPage />
             </RoleRoute>
           )}
         />

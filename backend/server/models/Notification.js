@@ -3,9 +3,10 @@ const mongoose = require("mongoose");
 const notificationSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    bugId: { type: mongoose.Schema.Types.ObjectId, ref: "Bug", default: null },
     type: {
       type: String,
-      enum: ["ASSIGNMENT", "STATUS_UPDATE", "COMMENT_ADDED"],
+      enum: ["ASSIGNMENT", "STATUS_UPDATE", "COMMENT_ADDED", "MENTION"],
       required: true
     },
     message: { type: String, required: true },

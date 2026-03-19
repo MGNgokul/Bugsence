@@ -2,7 +2,10 @@ const Notification = require("../models/Notification");
 
 async function getMyNotifications(req, res, next) {
   try {
-    const docs = await Notification.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(100);
+    const docs = await Notification.find({ userId: req.user._id })
+      .populate("bugId", "title status")
+      .sort({ createdAt: -1 })
+      .limit(100);
     res.json(docs);
   } catch (err) {
     next(err);

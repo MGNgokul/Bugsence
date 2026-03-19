@@ -11,7 +11,10 @@ const statusTimelineSchema = new mongoose.Schema(
 
 const attachmentSchema = new mongoose.Schema(
   {
+    fileName: String,
+    originalName: String,
     url: String,
+    fileSize: Number,
     fileType: String,
     uploadedAt: { type: Date, default: Date.now }
   },

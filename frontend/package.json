@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev-server.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "node scripts/preview-server.mjs",
+    "test": "node test/run-tests.js"
   },
   "dependencies": {
     "axios": "^1.7.2",

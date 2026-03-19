@@ -1,9 +1,9 @@
 const Notification = require("../models/Notification");
 
-async function createNotification({ userId, type, message }) {
+async function createNotification({ userId, bugId = null, type, message }) {
   try {
     if (!userId) return;
-    await Notification.create({ userId, type, message });
+    await Notification.create({ userId, bugId, type, message });
   } catch (_err) {
     // Keep notification creation non-blocking.
   }

@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { notificationApi } from "../services/notificationService";
 import AppIcon from "../components/ui/AppIcon";
+
+function getNotificationLabel(type) {
+  return String(type || "")
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
 export default function NotificationsPage() {
   const [items, setItems] = useState([]);
@@ -33,7 +42,7 @@ export default function NotificationsPage() {
       <section className="card header-row">
         <div>
           <h2 className="section-title"><AppIcon name="bell" /> Notifications</h2>
-          <p className="muted">Assignment, status update, and comment alerts.</p>
+          <p className="muted">Assignment, status update, comment, and mention alerts.</p>
         </div>
         <button className="btn-secondary" onClick={load}>Refresh</button>
       </section>
@@ -62,14 +71,22 @@ export default function NotificationsPage() {
         <ul className="comment-list stagger-list">
           {items.map((item) => (
             <li key={item._id}>
-              <strong>{item.type.replaceAll("_", " ")}</strong>
+              <strong>{getNotificationLabel(item.type)}</strong>
               <p>{item.message}</p>
+              {item.bugId?.title ? <p className="muted">Bug: {item.bugId.title}</p> : null}
               <p className="muted">{new Date(item.createdAt).toLocaleString()}</p>
-              {!item.read ? (
-                <button className="btn-secondary" onClick={() => markRead(item._id)}>Mark as read</button>
-              ) : (
-                <span className="pill pill-low">Read</span>
-              )}
+              <div className="quick-actions">
+                {item.bugId?._id ? (
+                  <Link className="btn-secondary" to={`/app/bugs/${item.bugId._id}`}>
+                    Open bug
+                  </Link>
+                ) : null}
+                {!item.read ? (
+                  <button className="btn-secondary" onClick={() => markRead(item._id)}>Mark as read</button>
+                ) : (
+                  <span className="pill pill-low">Read</span>
+                )}
+              </div>
             </li>
           ))}
         </ul>

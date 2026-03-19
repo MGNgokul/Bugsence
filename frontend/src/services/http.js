@@ -1,11 +1,72 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:5000" : undefined);
-const hasProductionApiBase = Boolean(import.meta.env.VITE_API_BASE_URL);
+function normalizeBaseUrl(value) {
+  return typeof value === "string" ? value.replace(/\/+$/, "") : "";
+}
 
-export const http = axios.create(baseURL ? { baseURL } : {});
+const configuredApiBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
+const hasProductionApiBase = Boolean(configuredApiBaseUrl);
 
-http.interceptors.request.use((config) => {
+function getDevApiCandidates() {
+  if (typeof window === "undefined") return [];
+
+  const candidates = [configuredApiBaseUrl, window.location.origin];
+  const hostnames = [window.location.hostname, "localhost", "127.0.0.1"].filter(Boolean);
+  const ports = ["5008", "5000"];
+
+  for (const port of ports) {
+    for (const hostname of hostnames) {
+      candidates.push(`http://${hostname}:${port}`);
+    }
+  }
+
+  return [...new Set(candidates.map(normalizeBaseUrl).filter(Boolean))];
+}
+
+async function probeApiBaseUrl(candidate) {
+  const response = await axios.get(`${candidate}/api/health`, {
+    timeout: 1200,
+    headers: {
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache"
+    }
+  });
+
+  if (!response?.data?.ok) {
+    throw new Error("Backend health check failed");
+  }
+
+  return candidate;
+}
+
+let devApiBaseUrlPromise;
+
+async function resolveDevApiBaseUrl() {
+  if (!import.meta.env.DEV) {
+    return configuredApiBaseUrl || undefined;
+  }
+
+  if (configuredApiBaseUrl) {
+    return configuredApiBaseUrl;
+  }
+
+  if (!devApiBaseUrlPromise) {
+    devApiBaseUrlPromise = Promise.any(getDevApiCandidates().map(probeApiBaseUrl)).catch(() => undefined);
+  }
+
+  return devApiBaseUrlPromise;
+}
+
+export const http = axios.create(configuredApiBaseUrl ? { baseURL: configuredApiBaseUrl } : {});
+
+http.interceptors.request.use(async (config) => {
+  if (!config.baseURL && import.meta.env.DEV && typeof config.url === "string" && config.url.startsWith("/api/")) {
+    const devApiBaseUrl = await resolveDevApiBaseUrl();
+    if (devApiBaseUrl) {
+      config.baseURL = devApiBaseUrl;
+    }
+  }
+
   config.headers["Cache-Control"] = "no-cache";
   config.headers.Pragma = "no-cache";
   const token = localStorage.getItem("bugsense_token");
@@ -29,7 +90,7 @@ export function getApiErrorMessage(error, fallbackMessage = "Request failed") {
     if (import.meta.env.PROD) {
       return publicServiceMessage;
     }
-    return "Cannot reach the backend API. Check that the backend is running and the API URL is correct.";
+    return "Cannot reach the backend API. Start the backend and set VITE_API_BASE_URL if it is not on a local default port.";
   }
 
   if (error?.response?.status === 404 && isApiRequest) {

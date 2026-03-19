@@ -34,6 +34,12 @@ const iconPaths = {
       <path d="M10 19a2 2 0 0 0 4 0" />
     </>
   ),
+  chat: (
+    <>
+      <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H11l-4 4v-4H7.5A2.5 2.5 0 0 1 5 12.5Z" />
+      <path d="M9 8.8h6M9 11.8h4" />
+    </>
+  ),
   team: (
     <>
       <circle cx="9" cy="8" r="3" />
@@ -68,6 +74,17 @@ const iconPaths = {
     <>
       <path d="M4 19h16M7 16V9M12 16V5M17 16v-4" />
     </>
+  ),
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
+    </>
+  ),
+  moon: (
+    <>
+      <path d="M18 14.5A6.5 6.5 0 0 1 9.5 6a7 7 0 1 0 8.5 8.5Z" />
+    </>
   )
 };
 
@@ -77,12 +94,15 @@ const iconGradients = {
   work: ["#32d6a6", "#2f80ed"],
   activity: ["#00c6ff", "#0072ff"],
   bell: ["#f9d423", "#ff4e50"],
+  chat: ["#5ee7df", "#4c80ff"],
   team: ["#a18cd1", "#fbc2eb"],
   plus: ["#43e97b", "#38f9d7"],
   spark: ["#fddb92", "#d1fdff"],
   shield: ["#5ee7df", "#b490ca"],
   rocket: ["#fa709a", "#fee140"],
-  stats: ["#30cfd0", "#330867"]
+  stats: ["#30cfd0", "#330867"],
+  sun: ["#ffd86f", "#fc6262"],
+  moon: ["#8ec5fc", "#5b6cff"]
 };
 
 export default function AppIcon({ name, size = 18, className = "", colorful = true }) {

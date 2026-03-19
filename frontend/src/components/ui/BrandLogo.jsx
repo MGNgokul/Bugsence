@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { Link } from "react-router-dom";
 
 export default function BrandLogo({ size = 36, withText = true, subtitle = "Engineering Quality" }) {
   const id = useId().replace(/:/g, "");
@@ -7,7 +8,7 @@ export default function BrandLogo({ size = 36, withText = true, subtitle = "Engi
   const glow = `brand-glow-${id}`;
 
   return (
-    <div className="brand-lockup">
+    <Link className="brand-lockup" to="/" aria-label="Go to BugSense landing page">
       <svg className="brand-mark-svg" width={size} height={size} viewBox="0 0 56 56" aria-hidden="true">
         <defs>
           <linearGradient id={gradA} x1="0" y1="0" x2="1" y2="1">
@@ -37,6 +38,6 @@ export default function BrandLogo({ size = 36, withText = true, subtitle = "Engi
           <p className="brand-subtitle">{subtitle}</p>
         </div>
       ) : null}
-    </div>
+    </Link>
   );
 }

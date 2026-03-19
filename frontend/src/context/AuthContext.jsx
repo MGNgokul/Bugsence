@@ -19,8 +19,7 @@ export function AuthProvider({ children }) {
     return saved ? normalizeUserRole(JSON.parse(saved)) : null;
   });
 
-  const login = async (email, password) => {
-    const data = await authApi.login({ email, password });
+  const persistSession = (data) => {
     const nextUser = normalizeUserRole(data.user);
     setToken(data.token);
     setUser(nextUser);
@@ -28,13 +27,18 @@ export function AuthProvider({ children }) {
     localStorage.setItem(userKey, JSON.stringify(nextUser));
   };
 
+  const login = async (email, password) => {
+    const data = await authApi.login({ email, password });
+    persistSession(data);
+  };
+
   const register = async (payload) => {
     const data = await authApi.register(payload);
-    const nextUser = normalizeUserRole(data.user);
-    setToken(data.token);
-    setUser(nextUser);
-    localStorage.setItem(tokenKey, data.token);
-    localStorage.setItem(userKey, JSON.stringify(nextUser));
+    persistSession(data);
+  };
+
+  const completeSession = (payload) => {
+    persistSession(payload);
   };
 
   const logout = () => {
@@ -50,6 +54,7 @@ export function AuthProvider({ children }) {
       user,
       login,
       register,
+      completeSession,
       logout
     }),
     [token, user]

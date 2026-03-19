@@ -4,16 +4,18 @@ import { bugApi } from "../services/bugService";
 import AppIcon from "../components/ui/AppIcon";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission, PERMISSIONS } from "../utils/roles";
+import { versionApi } from "../services/versionService";
 
 export default function BugListPage() {
   const { user } = useAuth();
   const [bugs, setBugs] = useState([]);
-  const [filters, setFilters] = useState({ status: "", priority: "", q: "" });
+  const [filters, setFilters] = useState({ status: "", priority: "", versionIntroduced: "", q: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState("priority");
   const [sortDir, setSortDir] = useState("desc");
   const [updatingId, setUpdatingId] = useState("");
+  const [versions, setVersions] = useState([]);
 
   async function load() {
     setLoading(true);
@@ -30,7 +32,7 @@ export default function BugListPage() {
   }
 
   function resetFilters() {
-    const initial = { status: "", priority: "", q: "" };
+    const initial = { status: "", priority: "", versionIntroduced: "", q: "" };
     setFilters(initial);
     setLoading(true);
     setError("");
@@ -45,15 +47,19 @@ export default function BugListPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    versionApi.list().then(setVersions).catch(() => setVersions([]));
+  }, []);
+
   function applyPreset(type) {
     const myId = user?.id || user?._id;
     if (type === "all") {
-      setFilters({ status: "", priority: "", q: "" });
+      setFilters({ status: "", priority: "", versionIntroduced: "", q: "" });
       setTimeout(load, 0);
       return;
     }
     if (type === "my-open") {
-      setFilters({ status: "Open", priority: "", q: "" });
+      setFilters({ status: "Open", priority: "", versionIntroduced: "", q: "" });
       bugApi
         .list({ status: "Open", assignedTo: myId })
         .then(setBugs)
@@ -61,7 +67,7 @@ export default function BugListPage() {
       return;
     }
     if (type === "critical") {
-      setFilters({ status: "", priority: "Critical", q: "" });
+      setFilters({ status: "", priority: "Critical", versionIntroduced: "", q: "" });
       bugApi
         .list({ priority: "Critical" })
         .then(setBugs)
@@ -69,7 +75,7 @@ export default function BugListPage() {
       return;
     }
     if (type === "qa") {
-      setFilters({ status: "Testing", priority: "", q: "" });
+      setFilters({ status: "Testing", priority: "", versionIntroduced: "", q: "" });
       bugApi
         .list({ status: "Testing" })
         .then(setBugs)
@@ -77,7 +83,7 @@ export default function BugListPage() {
       return;
     }
     if (type === "unassigned") {
-      setFilters({ status: "", priority: "", q: "" });
+      setFilters({ status: "", priority: "", versionIntroduced: "", q: "" });
       bugApi
         .list()
         .then((data) => setBugs(data.filter((bug) => !bug.assignedTo?.name)))
@@ -185,6 +191,17 @@ export default function BugListPage() {
           <option>High</option>
           <option>Critical</option>
         </select>
+        <input
+          list="tracked-version-filter-options"
+          placeholder="Filter by version"
+          value={filters.versionIntroduced}
+          onChange={(e) => setFilters((s) => ({ ...s, versionIntroduced: e.target.value }))}
+        />
+        <datalist id="tracked-version-filter-options">
+          {versions.map((item) => (
+            <option key={item._id} value={item.version} />
+          ))}
+        </datalist>
         <button onClick={load}>Apply</button>
         <button className="btn-secondary" onClick={resetFilters}>Reset</button>
       </section>

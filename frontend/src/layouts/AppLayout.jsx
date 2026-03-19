@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import BrandLogo from "../components/ui/BrandLogo";
@@ -19,6 +19,7 @@ export default function AppLayout() {
     { to: "/app/activity", label: "Activity", mobileLabel: "Feed", icon: "activity", permission: PERMISSIONS.ACTIVITY },
     { to: "/app/notifications", label: "Notifications", mobileLabel: "Alerts", icon: "bell", permission: PERMISSIONS.NOTIFICATIONS },
     { to: "/app/team", label: "Team", mobileLabel: "Team", icon: "team", permission: PERMISSIONS.TEAM },
+    { to: "/app/versions", label: "Versions", mobileLabel: "Versions", icon: "stats", permission: PERMISSIONS.VERSIONS },
     { to: "/app/bugs/new", label: "Report Bug", mobileLabel: "Report", icon: "plus", end: true, permission: PERMISSIONS.CREATE_BUG, mobileAccent: true }
   ];
 
@@ -144,50 +145,62 @@ export default function AppLayout() {
 
             <button
               type="button"
+              className="mobile-topbar__action"
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              onClick={toggleTheme}
+            >
+              <AppIcon name={theme === "dark" ? "sun" : "moon"} size={18} />
+            </button>
+
+            <Link
+              to="/app/profile"
               className="mobile-profile-button"
-              aria-label="Open workspace menu"
-              onClick={() => setNavOpen(true)}
+              aria-label="Open profile details"
             >
               <span className="mobile-profile-button__avatar">{userInitial}</span>
               <span className="mobile-profile-button__copy">
                 <strong>{firstName}</strong>
                 <small>{userRoleLabel}</small>
               </span>
-            </button>
+            </Link>
           </div>
         </div>
       </header>
 
       <main className="main">
-        <div className="workspace-quick-actions">
-          {renderUtilityControls("top")}
-        </div>
-
-        <header className="workspace-header">
-          <button
-            type="button"
-            className="topbar-mobile"
-            aria-label="Open navigation"
-            onClick={() => setNavOpen(true)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-
-          <div className="workspace-header-copy">
-            <p className="topbar-eyebrow">Operations Cockpit</p>
-            <strong className="topbar-title">
-              <AppIcon name="team" />
-              Welcome back, {firstName}
-            </strong>
-            <p className="muted">
-              {getRoleSummary(user?.role)}
-            </p>
+        <div className="workspace-frame">
+          <div className="workspace-quick-actions">
+            {renderUtilityControls("top")}
           </div>
-        </header>
 
-        <Outlet />
+          <header className="workspace-header">
+            <button
+              type="button"
+              className="topbar-mobile"
+              aria-label="Open navigation"
+              onClick={() => setNavOpen(true)}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+
+            <div className="workspace-header-copy">
+              <p className="topbar-eyebrow">Operations Cockpit</p>
+              <strong className="topbar-title">
+                <AppIcon name="team" />
+                Welcome back, {firstName}
+              </strong>
+              <p className="muted">
+                {getRoleSummary(user?.role)}
+              </p>
+            </div>
+          </header>
+
+          <div className="workspace-content">
+            <Outlet />
+          </div>
+        </div>
       </main>
 
       <nav className="mobile-bottom-nav" aria-label="Mobile primary navigation">

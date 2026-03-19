@@ -62,7 +62,7 @@ npm install
 npm run dev
 ```
 
-Set `VITE_API_BASE_URL` in frontend env if backend is not on `http://localhost:5000`.
+Set `VITE_API_BASE_URL` in frontend env to match the backend port. This project uses `http://localhost:5008` in the local env files.
 
 ## GitHub Pages
 
@@ -120,7 +120,7 @@ In GitHub:
 For local frontend development, copy [frontend/.env.example](frontend/.env.example) to `frontend/.env` and set:
 
 ```bash
-VITE_API_BASE_URL=http://localhost:5000
+VITE_API_BASE_URL=http://localhost:5008
 ```
 
 ### AI Suggestions
