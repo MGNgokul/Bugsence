@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "pages:sync": "npm --prefix frontend run build && node scripts/sync-pages-root.mjs"
+  },
   "devDependencies": {
     "gh-pages": "^6.3.0"
   }
