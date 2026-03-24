@@ -44,7 +44,7 @@ function buildController(overrides = {}) {
   const userMock = {
     findById(id) {
       return {
-        select: async () => (overrides.assigneeMissing ? null : { _id: id, role: "Developer" })
+        select: async () => (overrides.assigneeMissing ? null : { _id: id, role: overrides.assigneeRole || "Developer" })
       };
     }
   };
@@ -135,6 +135,32 @@ module.exports = [
 
         assert.equal(res.statusCode, 400);
         assert.equal(res.jsonPayload.message, "Selected assignee was not found.");
+        assert.equal(savedBugs.length, 0);
+        assert.equal(logCalls.length, 0);
+        assert.equal(notificationCalls.length, 0);
+      } finally {
+        restore();
+      }
+    }
+  },
+  {
+    name: "assignBug rejects non-developer assignees",
+    async run() {
+      const { controller, restore, logCalls, notificationCalls, savedBugs } = buildController({ assigneeRole: "Tester" });
+      const req = {
+        params: { id: "bug-1" },
+        body: { assignedTo: "user-5", deadline: "2026-03-25" },
+        user: { _id: "admin-1" }
+      };
+      const res = createResponse();
+
+      try {
+        await controller.assignBug(req, res, (err) => {
+          throw err;
+        });
+
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.jsonPayload.message, "Bugs can only be assigned to Developer users.");
         assert.equal(savedBugs.length, 0);
         assert.equal(logCalls.length, 0);
         assert.equal(notificationCalls.length, 0);

@@ -13,12 +13,13 @@ export default [
     }
   },
   {
-    name: "developer can access versions but not assignment controls",
+    name: "developer can access versions and status controls but cannot create or assign bugs",
     run() {
       const developer = { role: ROLES.DEVELOPER };
 
       assert.equal(hasPermission(developer, PERMISSIONS.VERSIONS), true);
       assert.equal(hasPermission(developer, PERMISSIONS.BUG_STATUS), true);
+      assert.equal(hasPermission(developer, PERMISSIONS.CREATE_BUG), false);
       assert.equal(hasPermission(developer, PERMISSIONS.BUG_ASSIGN), false);
     }
   },

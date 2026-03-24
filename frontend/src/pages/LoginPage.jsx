@@ -122,7 +122,7 @@ export default function LoginPage() {
       }
 
       completeSession({ token, user });
-      navigate("/app", { replace: true });
+      navigate("/app", { replace: true, state: { flashMessage: "Login successfully." } });
     } catch (_err) {
       setError("Could not complete social sign-in.");
       navigate("/login", { replace: true });
@@ -165,7 +165,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(form.email, form.password);
-      navigate("/app");
+      navigate("/app", { state: { flashMessage: "Login successfully." } });
     } catch (err) {
       setError(getApiErrorMessage(err, "Login failed"));
     } finally {

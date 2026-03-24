@@ -7,11 +7,14 @@ import AiTriagePanel from "../components/ui/AiTriagePanel";
 import AiSuggestionPanel from "../components/ui/AiSuggestionPanel";
 import AiAssistantPanel from "../components/ui/AiAssistantPanel";
 import { versionApi } from "../services/versionService";
+import { useAuth } from "../context/AuthContext";
+import { hasPermission, PERMISSIONS } from "../utils/roles";
 
 const CATEGORY_OPTIONS = ["UI Bug", "Backend Bug", "Performance Issue", "Security Bug", "Database Bug", "Other"];
 
 export default function CreateBugPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -163,7 +166,9 @@ export default function CreateBugPage() {
         ...form,
         attachments
       });
-      navigate(`/app/bugs/${data._id}`);
+      navigate(`/app/bugs/${data._id}`, {
+        state: { flashMessage: "Bug created successfully." }
+      });
     } catch (err) {
       if (err?.response?.data?.errors) {
         setErrors(err.response.data.errors);
@@ -202,6 +207,16 @@ export default function CreateBugPage() {
   }
 
   const canPreviewSuggestion = !loading && !loadingSuggestion;
+  const canCreateBug = hasPermission(user, PERMISSIONS.CREATE_BUG);
+
+  if (!canCreateBug) {
+    return (
+      <section className="card page-stack">
+        <h2 className="section-title"><AppIcon name="shield" /> Role Access</h2>
+        <p className="muted">Only Admin and Tester users can create bugs. Developers can work on assigned bugs and update status.</p>
+      </section>
+    );
+  }
 
   return (
     <div className="page-stack">

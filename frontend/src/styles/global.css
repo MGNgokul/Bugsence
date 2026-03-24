@@ -96,6 +96,7 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: var(--font-body);
+  line-height: 1.6;
   color: var(--text);
   background:
     radial-gradient(circle at 10% 8%, rgba(88, 202, 215, 0.16), transparent 26%),
@@ -395,12 +396,49 @@ a:focus-visible {
 
 .muted {
   color: var(--text-muted);
+  line-height: 1.72;
 }
 
 .error,
 .marketing-error,
 .prx-form-error {
   color: var(--danger-soft);
+}
+
+.app-flash {
+  position: fixed;
+  left: 58%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  max-width: calc(100vw - 2rem);
+  min-width: 0;
+  padding: 0.55rem 0.9rem;
+  text-align: center;
+  border-radius: 999px;
+  border: 1px solid rgba(88, 202, 215, 0.28);
+  background: rgba(6, 17, 31, 0.72);
+  box-shadow: 0 12px 28px rgba(2, 8, 18, 0.22);
+  backdrop-filter: blur(12px);
+}
+
+.app-flash span,
+.app-flash--inline {
+  background: linear-gradient(135deg, #72d8d8, #ffd07a, #7aa6ff);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.app-flash--inline {
+  margin-bottom: 0;
 }
 
 .card,
@@ -468,13 +506,13 @@ a:focus-visible {
 .auth-panel,
 .marketing-form-block,
 .prx-validation {
-  padding: clamp(1.15rem, 2vw, 1.5rem);
+  padding: clamp(1.3rem, 2.3vw, 1.75rem);
 }
 
 .page-stack,
 .page-grid {
   display: grid;
-  gap: 1.4rem;
+  gap: 1.7rem;
 }
 
 .section-title {
@@ -484,6 +522,7 @@ a:focus-visible {
   font-family: var(--font-display);
   font-size: clamp(1.25rem, 1.5vw, 1.7rem);
   letter-spacing: 0.01em;
+  line-height: 1.2;
 }
 
 .section-title svg {
@@ -494,14 +533,14 @@ a:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
   flex-wrap: wrap;
 }
 
 .badge-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.7rem;
+  gap: 0.85rem;
 }
 
 .badge-soft,
@@ -743,14 +782,14 @@ a:hover .icon-chip svg {
 
 .kpi-row {
   display: grid;
-  gap: 1rem;
+  gap: 1.2rem;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .kpi-card {
-  padding: 1.1rem;
+  padding: 1.25rem;
   display: grid;
-  gap: 0.45rem;
+  gap: 0.6rem;
 }
 
 .kpi-card strong {
@@ -760,14 +799,14 @@ a:hover .icon-chip svg {
 
 .interactive-grid {
   display: grid;
-  gap: 1rem;
+  gap: 1.2rem;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .mini-card {
-  padding: 1.1rem;
+  padding: 1.2rem;
   display: grid;
-  gap: 0.8rem;
+  gap: 0.9rem;
 }
 
 .mini-card h4 {
@@ -783,12 +822,12 @@ a:hover .icon-chip svg {
 .filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.85rem;
+  gap: 1rem;
   align-items: center;
 }
 
 .filter-row > * {
-  flex: 1 1 180px;
+  flex: 1 1 200px;
 }
 
 .table {
@@ -798,10 +837,11 @@ a:hover .icon-chip svg {
 
 .table th,
 .table td {
-  padding: 1rem;
+  padding: 1.1rem 1rem;
   text-align: left;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
+  line-height: 1.6;
 }
 
 .table th {
@@ -863,7 +903,7 @@ a:hover .icon-chip svg {
 .quick-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: 0.7rem;
 }
 
 .quick-actions .btn-secondary,
@@ -907,9 +947,9 @@ a:hover .icon-chip svg {
 
 .empty-state {
   display: grid;
-  gap: 0.8rem;
+  gap: 1rem;
   justify-items: start;
-  padding: 1.25rem;
+  padding: 1.4rem;
   border-radius: 20px;
   border: 1px dashed var(--border-strong);
   background: var(--surface-soft);
@@ -917,12 +957,12 @@ a:hover .icon-chip svg {
 
 .form-grid {
   display: grid;
-  gap: 1rem;
+  gap: 1.15rem;
 }
 
 .field {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.55rem;
 }
 
 .field > span {
@@ -934,15 +974,89 @@ a:hover .icon-chip svg {
 
 .split {
   display: grid;
-  gap: 1rem;
+  gap: 1.15rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .meta-grid {
   display: grid;
-  gap: 0.65rem 1rem;
+  gap: 0.9rem 1.1rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   color: var(--text-soft);
+}
+
+.bug-details-hero {
+  display: grid;
+  gap: 1.35rem;
+}
+
+.bug-details-hero__header {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.bug-details-hero__description {
+  max-width: 980px;
+  line-height: 1.75;
+  font-size: 1.02rem;
+}
+
+.bug-details-hero__badges {
+  gap: 0.85rem;
+}
+
+.bug-details-meta {
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.bug-details-meta__item {
+  display: grid;
+  gap: 0.38rem;
+  padding: 1rem 1.05rem;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.bug-details-meta__item span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bug-details-meta__item strong {
+  color: var(--text);
+  font-size: 1.02rem;
+}
+
+.bug-details-copy {
+  display: grid;
+  gap: 1rem;
+}
+
+.bug-details-copy__item {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem 1.05rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.bug-details-copy__item h4 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.bug-details-copy__item p {
+  color: var(--text-soft);
+  line-height: 1.78;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .ai-box {
@@ -1285,11 +1399,11 @@ a:hover .icon-chip svg {
 
 .comment-list {
   display: grid;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
 .comment-list li {
-  padding: 1rem;
+  padding: 1.1rem 1.15rem;
   border-radius: 18px;
   border: 1px solid var(--border);
   background: var(--surface-soft);
@@ -1352,7 +1466,7 @@ a:hover .icon-chip svg {
 
 .timeline {
   display: grid;
-  gap: 1rem;
+  gap: 1.1rem;
 }
 
 .timeline li {
@@ -1651,6 +1765,13 @@ a:hover .icon-chip svg {
   box-shadow: 0 14px 28px rgba(243, 182, 92, 0.18);
 }
 
+.workspace-action-icon {
+  width: 46px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+
 .workspace-action-secondary {
   background: rgba(8, 18, 34, 0.72);
   color: var(--text);
@@ -1658,10 +1779,24 @@ a:hover .icon-chip svg {
   box-shadow: var(--shadow-soft);
 }
 
+.workspace-action.active,
+.workspace-action-icon.active {
+  border-color: rgba(88, 202, 215, 0.34);
+  background: color-mix(in srgb, var(--surface-soft) 68%, var(--accent) 32%);
+  color: var(--text);
+}
+
 :root[data-theme="light"] .workspace-action-secondary {
   background: linear-gradient(180deg, rgba(249, 251, 253, 0.96), rgba(241, 245, 249, 0.92));
   border-color: rgba(15, 140, 166, 0.28);
   box-shadow: 0 12px 24px rgba(65, 86, 118, 0.08);
+}
+
+:root[data-theme="light"] .workspace-action.active,
+:root[data-theme="light"] .workspace-action-icon.active {
+  border-color: rgba(15, 140, 166, 0.24);
+  background: linear-gradient(180deg, rgba(234, 242, 245, 0.98), rgba(225, 235, 241, 0.94));
+  box-shadow: 0 10px 22px rgba(65, 86, 118, 0.1);
 }
 
 :root[data-theme="light"] .sidebar .muted,

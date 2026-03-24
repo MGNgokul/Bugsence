@@ -23,6 +23,10 @@ const AI_RELEVANT_FIELDS = [
   "versionFixed"
 ];
 
+const BUG_CREATOR_ROLES = new Set(["Admin", "Tester"]);
+const BUG_EDITOR_ROLES = new Set(["Admin", "Developer"]);
+const DEVELOPER_EDITABLE_FIELDS = new Set(["status", "versionFixed"]);
+
 function getPublicServerUrl(req) {
   const configuredUrl = String(process.env.SERVER_URL || "").trim().replace(/\/+$/, "");
   if (configuredUrl) return configuredUrl;
@@ -124,6 +128,10 @@ async function previewDuplicateBugs(req, res, next) {
 
 async function createBug(req, res, next) {
   try {
+    if (!BUG_CREATOR_ROLES.has(req.user?.role)) {
+      return res.status(403).json({ message: "Only Admin and Tester users can create bugs." });
+    }
+
     const payload = { ...req.body, ...normalizeBugVersionFields(req.body) };
     const validationErrors = {
       ...validateBugPayload(payload),
@@ -298,10 +306,25 @@ async function addAttachments(req, res, next) {
 
 async function updateBug(req, res, next) {
   try {
+    if (!BUG_EDITOR_ROLES.has(req.user?.role)) {
+      return res.status(403).json({ message: "Only Admin and Developer users can update bugs." });
+    }
+
     const bug = await Bug.findById(req.params.id);
     if (!bug) return res.status(404).json({ message: "Bug not found" });
 
     const payload = { ...req.body };
+    if (req.user.role === "Developer") {
+      const attemptedFields = Object.keys(payload).filter((field) => payload[field] !== undefined);
+      const invalidFields = attemptedFields.filter((field) => !DEVELOPER_EDITABLE_FIELDS.has(field));
+
+      if (invalidFields.length > 0) {
+        return res.status(403).json({
+          message: "Developers can only update bug status and fixed version."
+        });
+      }
+    }
+
     const normalizedVersions = normalizeBugVersionFields(req.body);
 
     if (req.body.versionIntroduced !== undefined) {
@@ -405,6 +428,9 @@ async function assignBug(req, res, next) {
     const assignee = await User.findById(assignedTo).select("_id role");
     if (!assignee) {
       return res.status(400).json({ message: "Selected assignee was not found." });
+    }
+    if (assignee.role !== "Developer") {
+      return res.status(400).json({ message: "Bugs can only be assigned to Developer users." });
     }
 
     const parsedDeadline = deadline ? new Date(deadline) : null;

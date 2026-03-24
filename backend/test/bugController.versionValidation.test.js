@@ -52,7 +52,7 @@ module.exports = [
           actualResult: "Spinner never ends.",
           versionIntroduced: "9.9.9"
         },
-        user: { _id: "user-1" }
+        user: { _id: "user-1", role: "Tester" }
       };
       const res = createResponse();
 
@@ -114,7 +114,7 @@ module.exports = [
       const req = {
         params: { id: "bug-1" },
         body: { versionFixed: "10.0.0" },
-        user: { _id: "user-1" }
+        user: { _id: "user-1", role: "Developer" }
       };
       const res = createResponse();
 

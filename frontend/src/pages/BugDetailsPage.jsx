@@ -66,6 +66,7 @@ export default function BugDetailsPage() {
   const [comment, setComment] = useState("");
   const [status, setStatus] = useState("Open");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
   const [postingComment, setPostingComment] = useState(false);
@@ -76,6 +77,16 @@ export default function BugDetailsPage() {
   const [versionFixed, setVersionFixed] = useState("");
   const [attachmentFiles, setAttachmentFiles] = useState([]);
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
+
+  useEffect(() => {
+    if (!successMessage) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setSuccessMessage("");
+    }, 2000);
+
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
 
   async function load() {
     setLoading(true);
@@ -116,9 +127,11 @@ export default function BugDetailsPage() {
     e.preventDefault();
     if (!comment.trim()) return;
     setPostingComment(true);
+    setSuccessMessage("");
     try {
       await bugApi.addComment(id, { comment });
       setComment("");
+      setSuccessMessage("Comment posted successfully.");
       await load();
     } catch (err) {
       setError(getApiErrorMessage(err, "Could not add comment."));
@@ -135,8 +148,10 @@ export default function BugDetailsPage() {
 
     setSavingStatus(true);
     setError("");
+    setSuccessMessage("");
     try {
       await bugApi.update(id, { status, versionFixed });
+      setSuccessMessage("Bug status updated successfully.");
       await load();
     } catch (err) {
       setError(getApiErrorMessage(err, "Could not update bug."));
@@ -153,9 +168,11 @@ export default function BugDetailsPage() {
 
     setAssigning(true);
     setError("");
+    setSuccessMessage("");
 
     try {
       await bugApi.assign(id, assignment);
+      setSuccessMessage("Bug assigned successfully.");
       await load();
     } catch (err) {
       setError(getApiErrorMessage(err, "Could not assign bug."));
@@ -174,10 +191,12 @@ export default function BugDetailsPage() {
 
     setUploadingAttachments(true);
     setError("");
+    setSuccessMessage("");
 
     try {
       await bugApi.addAttachments(id, attachmentFiles);
       setAttachmentFiles([]);
+      setSuccessMessage("Attachments uploaded successfully.");
       await load();
     } catch (err) {
       setError(getApiErrorMessage(err, "Could not upload attachments."));
@@ -195,7 +214,7 @@ export default function BugDetailsPage() {
   const latestTimeline = timelineCount > 0 ? bug.statusTimeline[timelineCount - 1] : null;
   const canUpdateStatus = hasPermission(user, PERMISSIONS.BUG_STATUS);
   const canAssign = hasPermission(user, PERMISSIONS.BUG_ASSIGN);
-  const assignableUsers = teamMembers.filter((member) => ["Admin", "Developer", "Tester"].includes(member.role));
+  const assignableUsers = teamMembers.filter((member) => member.role === "Developer");
   const currentUserId = user?.id || user?._id || "";
   const attachments = bug.attachments || [];
   const mentionExamples = teamMembers
@@ -207,27 +226,62 @@ export default function BugDetailsPage() {
 
   return (
     <div className="page-stack">
-      <section className="card">
+      <section className="card bug-details-hero">
         {error && <p className="error">{error}</p>}
-        <h2 className="section-title"><AppIcon name="bug" /> {bug.title}</h2>
-        <p className="muted">{bug.description}</p>
-        <div className="badge-row">
+        {successMessage ? <p className="app-flash app-flash--success app-flash--inline">{successMessage}</p> : null}
+        <div className="bug-details-hero__header">
+          <h2 className="section-title"><AppIcon name="bug" /> {bug.title}</h2>
+          <p className="muted bug-details-hero__description">{bug.description}</p>
+        </div>
+        <div className="badge-row bug-details-hero__badges">
           <span className="badge-soft"><AppIcon name="activity" size={14} /> Timeline events: {timelineCount}</span>
           <span className="badge-soft"><AppIcon name="team" size={14} /> Comments: {commentCount}</span>
           <span className="badge-soft"><AppIcon name="work" size={14} /> Assignee: {bug.assignedTo?.name || "Unassigned"}</span>
         </div>
-        <div className="meta-grid">
-          <p><strong>Status:</strong> {bug.status}</p>
-          <p><strong>Priority:</strong> {bug.priority}</p>
-          <p><strong>Severity:</strong> {bug.severity}</p>
-          <p><strong>Category:</strong> {bug.category}</p>
-          <p><strong>Version:</strong> {bug.versionIntroduced || "N/A"}</p>
-          <p><strong>Version Fixed:</strong> {bug.versionFixed || "N/A"}</p>
-          <p><strong>Deadline:</strong> {bug.deadline ? new Date(bug.deadline).toLocaleDateString() : "N/A"}</p>
+        <div className="meta-grid bug-details-meta">
+          <article className="bug-details-meta__item">
+            <span>Status</span>
+            <strong>{bug.status}</strong>
+          </article>
+          <article className="bug-details-meta__item">
+            <span>Priority</span>
+            <strong>{bug.priority}</strong>
+          </article>
+          <article className="bug-details-meta__item">
+            <span>Severity</span>
+            <strong>{bug.severity}</strong>
+          </article>
+          <article className="bug-details-meta__item">
+            <span>Category</span>
+            <strong>{bug.category}</strong>
+          </article>
+          <article className="bug-details-meta__item">
+            <span>Version</span>
+            <strong>{bug.versionIntroduced || "N/A"}</strong>
+          </article>
+          <article className="bug-details-meta__item">
+            <span>Version Fixed</span>
+            <strong>{bug.versionFixed || "N/A"}</strong>
+          </article>
+          <article className="bug-details-meta__item">
+            <span>Deadline</span>
+            <strong>{bug.deadline ? new Date(bug.deadline).toLocaleDateString() : "N/A"}</strong>
+          </article>
         </div>
-        <p><strong>Steps:</strong> {bug.stepsToReproduce || "N/A"}</p>
-        <p><strong>Expected:</strong> {bug.expectedResult || "N/A"}</p>
-        <p><strong>Actual:</strong> {bug.actualResult || "N/A"}</p>
+        <div className="bug-details-copy">
+          <article className="bug-details-copy__item">
+            <h4>Steps to reproduce</h4>
+            <p>{bug.stepsToReproduce || "N/A"}</p>
+          </article>
+          <article className="bug-details-copy__item">
+            <h4>Expected result</h4>
+            <p>{bug.expectedResult || "N/A"}</p>
+          </article>
+          <article className="bug-details-copy__item">
+            <h4>Actual result</h4>
+            <p>{bug.actualResult || "N/A"}</p>
+          </article>
+        </div>
       </section>
 
       <section className="card">
@@ -302,32 +356,34 @@ export default function BugDetailsPage() {
         </form>
       </section>
 
-      <AiSuggestionPanel
-        suggestion={bug.aiSuggestion}
-        title="AI Bug Fix Suggestions"
-        subtitle="Structured guidance generated from the current bug report details."
-        error={error && bug ? error : ""}
-        emptyTitle="No AI fix suggestion available"
-        emptyText="Reload the bug details after adding more bug information to generate a stronger suggestion."
-      />
+      <section id="bug-ai" className="page-stack">
+        <AiSuggestionPanel
+          suggestion={bug.aiSuggestion}
+          title="AI Bug Fix Suggestions"
+          subtitle="Structured guidance generated from the current bug report details."
+          error={error && bug ? error : ""}
+          emptyTitle="No AI fix suggestion available"
+          emptyText="Reload the bug details after adding more bug information to generate a stronger suggestion."
+        />
 
-      <AiAssistantPanel
-        payload={{
-          title: bug.title,
-          description: bug.description,
-          stepsToReproduce: bug.stepsToReproduce,
-          expectedResult: bug.expectedResult,
-          actualResult: bug.actualResult,
-          priority: bug.priority,
-          severity: bug.severity,
-          category: bug.category,
-          versionIntroduced: bug.versionIntroduced,
-          versionFixed: bug.versionFixed
-        }}
-        conversationKey={id}
-        title="Ask AI About This Bug"
-        subtitle="Use the saved bug details as context and ask follow-up triage questions."
-      />
+        <AiAssistantPanel
+          payload={{
+            title: bug.title,
+            description: bug.description,
+            stepsToReproduce: bug.stepsToReproduce,
+            expectedResult: bug.expectedResult,
+            actualResult: bug.actualResult,
+            priority: bug.priority,
+            severity: bug.severity,
+            category: bug.category,
+            versionIntroduced: bug.versionIntroduced,
+            versionFixed: bug.versionFixed
+          }}
+          conversationKey={id}
+          title="Ask AI About This Bug"
+          subtitle="Use the saved bug details as context and ask follow-up triage questions."
+        />
+      </section>
 
       <section className="kpi-row stagger-list">
         <article className="kpi-card">
@@ -400,7 +456,7 @@ export default function BugDetailsPage() {
                   value={assignment.assignedTo}
                   onChange={(e) => setAssignment((state) => ({ ...state, assignedTo: e.target.value }))}
                 >
-                  <option value="">Select team member</option>
+                  <option value="">Select developer</option>
                   {assignableUsers.map((member) => (
                     <option key={member._id} value={member._id}>
                       {member.name} ({member.role})
@@ -422,6 +478,9 @@ export default function BugDetailsPage() {
             <button type="button" onClick={saveAssignment} disabled={assigning}>
               {assigning ? "Saving assignment..." : "Save Assignment"}
             </button>
+            {assignableUsers.length === 0 ? (
+              <p className="muted">No developer accounts are available yet. Create a developer user first.</p>
+            ) : null}
           </div>
         </section>
       ) : null}

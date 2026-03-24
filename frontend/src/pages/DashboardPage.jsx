@@ -4,6 +4,8 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis
 import { analyticsApi } from "../services/analyticsService";
 import AppIcon from "../components/ui/AppIcon";
 import { getApiErrorMessage } from "../services/http";
+import { useAuth } from "../context/AuthContext";
+import { hasPermission, PERMISSIONS } from "../utils/roles";
 
 const colors = {
   Critical: "var(--chart-4)",
@@ -33,6 +35,7 @@ const tooltipStyles = {
 };
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -164,6 +167,7 @@ export default function DashboardPage() {
   const activeWork = Math.max(0, total - resolved);
   const priorityLead = priorityData[0]?.name || "Low";
   const dominantStatus = [...statusData].sort((a, b) => b.value - a.value)[0]?.name || "Open";
+  const canCreateBug = hasPermission(user, PERMISSIONS.CREATE_BUG);
 
   const workloadSignal =
     pending > resolved
@@ -297,10 +301,12 @@ export default function DashboardPage() {
           </div>
 
           <div className="dashboard-hero-actions">
-            <Link className="btn-primary" to="/app/bugs/new">
-              <AppIcon name="plus" />
-              Report Bug
-            </Link>
+            {canCreateBug ? (
+              <Link className="btn-primary" to="/app/bugs/new">
+                <AppIcon name="plus" />
+                Report Bug
+              </Link>
+            ) : null}
             <Link className="btn-secondary" to="/app/bugs">
               <AppIcon name="bug" />
               Open Backlog

@@ -6,7 +6,8 @@ const suites = [
   ...require("./bugController.assign.test"),
   ...require("./bugController.duplicates.test"),
   ...require("./bugController.commentMentions.test"),
-  ...require("./bugController.versionValidation.test")
+  ...require("./bugController.versionValidation.test"),
+  ...require("./bugController.roleAccess.test")
 ];
 
 async function main() {

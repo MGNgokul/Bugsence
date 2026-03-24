@@ -90,6 +90,30 @@ a:focus-visible {
   color: var(--danger-soft);
 }
 
+.app-flash {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: min(420px, calc(100vw - 2rem));
+  padding: 0.95rem 1.2rem;
+  border-radius: 18px;
+  border: 1px solid rgba(83, 211, 165, 0.34);
+  background: linear-gradient(135deg, rgba(83, 211, 165, 0.18), rgba(19, 40, 70, 0.96));
+  color: #dff8ec;
+  box-shadow: 0 18px 42px rgba(2, 8, 18, 0.28);
+  backdrop-filter: blur(16px);
+}
+
+.app-flash--inline {
+  margin-bottom: 0;
+}
+
+
 .card,
 .kpi-card,
 .command-card,

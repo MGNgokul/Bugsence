@@ -62,7 +62,14 @@ export default function App() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="bugs" element={<BugListPage />} />
-        <Route path="bugs/new" element={<CreateBugPage />} />
+        <Route
+          path="bugs/new"
+          element={(
+            <RoleRoute permission={PERMISSIONS.CREATE_BUG}>
+              <CreateBugPage />
+            </RoleRoute>
+          )}
+        />
         <Route path="bugs/:id" element={<BugDetailsPage />} />
         <Route path="my-work" element={<MyWorkPage />} />
         <Route path="notifications" element={<NotificationsPage />} />

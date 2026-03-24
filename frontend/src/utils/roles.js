@@ -37,7 +37,6 @@ const rolePermissions = {
   [ROLES.DEVELOPER]: new Set([
     PERMISSIONS.DASHBOARD,
     PERMISSIONS.BUGS,
-    PERMISSIONS.CREATE_BUG,
     PERMISSIONS.MY_WORK,
     PERMISSIONS.NOTIFICATIONS,
     PERMISSIONS.ACTIVITY,
@@ -75,7 +74,7 @@ export function getRoleSummary(role) {
   }
 
   if (normalizedRole === ROLES.DEVELOPER) {
-    return "Can work on bugs, update status, and review delivery activity.";
+    return "Can solve assigned bugs, update status, and review delivery activity.";
   }
 
   return "Focused access for reporting bugs, tracking work, and staying notified.";

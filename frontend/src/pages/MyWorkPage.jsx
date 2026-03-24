@@ -62,6 +62,7 @@ export default function MyWorkPage() {
                   <th>Status</th>
                   <th>Priority</th>
                   <th>Deadline</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody className="stagger-list">
@@ -71,6 +72,16 @@ export default function MyWorkPage() {
                     <td><span className="pill">{bug.status}</span></td>
                     <td><span className={`pill pill-${bug.priority?.toLowerCase()}`}>{bug.priority}</span></td>
                     <td>{bug.deadline ? new Date(bug.deadline).toLocaleDateString() : "N/A"}</td>
+                    <td>
+                      <div className="quick-actions">
+                        <Link className="btn-secondary" to={`/app/bugs/${bug._id}`}>
+                          <AppIcon name="work" /> Solve Now
+                        </Link>
+                        <Link className="btn-secondary" to={`/app/bugs/${bug._id}#bug-ai`}>
+                          <AppIcon name="stats" /> Ask AI
+                        </Link>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

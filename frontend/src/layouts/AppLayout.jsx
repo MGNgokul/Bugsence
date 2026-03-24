@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import BrandLogo from "../components/ui/BrandLogo";
@@ -8,16 +8,17 @@ import { getRoleSummary, hasPermission, PERMISSIONS } from "../utils/roles";
 
 export default function AppLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const [navOpen, setNavOpen] = useState(false);
+  const [flashMessage, setFlashMessage] = useState("");
 
   const navItems = [
     { to: "/app", label: "Dashboard", mobileLabel: "Home", icon: "dashboard", end: true, permission: PERMISSIONS.DASHBOARD },
     { to: "/app/bugs", label: "Backlog", mobileLabel: "Bugs", icon: "bug", permission: PERMISSIONS.BUGS },
     { to: "/app/my-work", label: "My Work", mobileLabel: "Work", icon: "work", permission: PERMISSIONS.MY_WORK },
     { to: "/app/activity", label: "Activity", mobileLabel: "Feed", icon: "activity", permission: PERMISSIONS.ACTIVITY },
-    { to: "/app/notifications", label: "Notifications", mobileLabel: "Alerts", icon: "bell", permission: PERMISSIONS.NOTIFICATIONS },
     { to: "/app/team", label: "Team", mobileLabel: "Team", icon: "team", permission: PERMISSIONS.TEAM },
     { to: "/app/versions", label: "Versions", mobileLabel: "Versions", icon: "stats", permission: PERMISSIONS.VERSIONS },
     { to: "/app/bugs/new", label: "Report Bug", mobileLabel: "Report", icon: "plus", end: true, permission: PERMISSIONS.CREATE_BUG, mobileAccent: true }
@@ -27,9 +28,29 @@ export default function AppLayout() {
     setNavOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    const nextFlash = location.state?.flashMessage;
+
+    if (!nextFlash) return;
+
+    setFlashMessage(nextFlash);
+    navigate(location.pathname + location.search, { replace: true, state: {} });
+  }, [location.pathname, location.search, location.state, navigate]);
+
+  useEffect(() => {
+    if (!flashMessage) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setFlashMessage("");
+    }, 2000);
+
+    return () => window.clearTimeout(timer);
+  }, [flashMessage]);
+
   const firstName = user?.name?.trim()?.split(/\s+/)[0] || "Team";
   const visibleNavItems = navItems.filter((item) => hasPermission(user, item.permission));
   const getVisibleNavItem = (to) => visibleNavItems.find((item) => item.to === to);
+  const canViewNotifications = hasPermission(user, PERMISSIONS.NOTIFICATIONS);
   const mobilePrimaryNavItems = [];
   const appendMobileNavItem = (item) => {
     if (item && !mobilePrimaryNavItems.some((entry) => entry.to === item.to)) {
@@ -40,10 +61,9 @@ export default function AppLayout() {
   appendMobileNavItem(getVisibleNavItem("/app"));
   appendMobileNavItem(getVisibleNavItem("/app/bugs"));
   appendMobileNavItem(getVisibleNavItem("/app/bugs/new"));
-  appendMobileNavItem(getVisibleNavItem("/app/team") || getVisibleNavItem("/app/activity") || getVisibleNavItem("/app/notifications"));
-  appendMobileNavItem(getVisibleNavItem("/app/my-work") || getVisibleNavItem("/app/notifications") || getVisibleNavItem("/app/activity"));
+  appendMobileNavItem(getVisibleNavItem("/app/team") || getVisibleNavItem("/app/activity"));
+  appendMobileNavItem(getVisibleNavItem("/app/my-work") || getVisibleNavItem("/app/activity"));
 
-  const mobileNotificationItem = getVisibleNavItem("/app/notifications");
   const userRoleLabel = user?.role || "Workspace";
   const userInitial = firstName.charAt(0).toUpperCase();
   const renderUtilityControls = (mode) => (
@@ -133,13 +153,13 @@ export default function AppLayout() {
           </div>
 
           <div className="mobile-topbar__actions">
-            {mobileNotificationItem ? (
+            {canViewNotifications ? (
               <NavLink
-                to={mobileNotificationItem.to}
+                to="/app/notifications"
                 className={({ isActive }) => `mobile-topbar__action${isActive ? " active" : ""}`}
-                aria-label={mobileNotificationItem.label}
+                aria-label="Notifications"
               >
-                <AppIcon name={mobileNotificationItem.icon} size={18} />
+                <AppIcon name="bell" size={18} />
               </NavLink>
             ) : null}
 
@@ -170,6 +190,17 @@ export default function AppLayout() {
       <main className="main">
         <div className="workspace-frame">
           <div className="workspace-quick-actions">
+            {canViewNotifications ? (
+              <NavLink
+                to="/app/notifications"
+                className={({ isActive }) =>
+                  `workspace-action workspace-action-secondary workspace-action-icon${isActive ? " active" : ""}`
+                }
+                aria-label="Notifications"
+              >
+                <AppIcon name="bell" size={16} />
+              </NavLink>
+            ) : null}
             {renderUtilityControls("top")}
           </div>
 
@@ -198,6 +229,11 @@ export default function AppLayout() {
           </header>
 
           <div className="workspace-content">
+            {flashMessage ? (
+              <div className="app-flash app-flash--success">
+                <span>{flashMessage}</span>
+              </div>
+            ) : null}
             <Outlet />
           </div>
         </div>
