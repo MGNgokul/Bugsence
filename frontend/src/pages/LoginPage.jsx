@@ -5,7 +5,7 @@ import { authApi } from "../services/authService";
 import { isStrongPassword, isValidEmail } from "../utils/validation";
 import BrandLogo from "../components/ui/BrandLogo";
 import AppIcon from "../components/ui/AppIcon";
-import { getApiErrorMessage } from "../services/http";
+import { getApiErrorMessage, getProductionApiSetupMessage, isProductionApiConfigured } from "../services/http";
 
 const DEFAULT_PROVIDERS = {
   google: {
@@ -67,6 +67,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [providers, setProviders] = useState(DEFAULT_PROVIDERS);
   const [providerLoading, setProviderLoading] = useState(true);
+  const productionApiMessage = getProductionApiSetupMessage();
+  const authUnavailable = !isProductionApiConfigured();
 
   useEffect(() => {
     let active = true;
@@ -152,6 +154,11 @@ export default function LoginPage() {
     event.preventDefault();
     setError("");
 
+    if (authUnavailable) {
+      setError(productionApiMessage);
+      return;
+    }
+
     if (!emailValid) {
       setError("Enter a valid email address.");
       return;
@@ -190,12 +197,13 @@ export default function LoginPage() {
         </div>
 
         {error ? <p className="error auth-form-plain__error login-simple__error">{error}</p> : null}
+        {!error && authUnavailable ? <p className="error auth-form-plain__error login-simple__error">{productionApiMessage}</p> : null}
 
         <div className="login-simple__social-stack">
           <button
             type="button"
             className="login-simple__social"
-            disabled={loading || providerLoading || !providers.google?.enabled}
+            disabled={authUnavailable || loading || providerLoading || !providers.google?.enabled}
             onClick={() => startSocialSignIn("google")}
           >
             <SocialMark provider="google" />
@@ -205,7 +213,7 @@ export default function LoginPage() {
           <button
             type="button"
             className="login-simple__social"
-            disabled={loading || providerLoading || !providers.github?.enabled}
+            disabled={authUnavailable || loading || providerLoading || !providers.github?.enabled}
             onClick={() => startSocialSignIn("github")}
           >
             <SocialMark provider="github" />
@@ -247,9 +255,9 @@ export default function LoginPage() {
           </div>
         </label>
 
-        <button type="submit" className="login-simple__submit" disabled={loading}>
+        <button type="submit" className="login-simple__submit" disabled={authUnavailable || loading}>
           <AppIcon name={loading ? "activity" : "rocket"} size={16} colorful={false} />
-          {loading ? "Signing in..." : "Login"}
+          {authUnavailable ? "Live API required" : loading ? "Signing in..." : "Login"}
         </button>
 
         <p className="auth-switch login-simple__switch">

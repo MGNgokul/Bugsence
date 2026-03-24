@@ -4,8 +4,26 @@ function normalizeBaseUrl(value) {
   return typeof value === "string" ? value.replace(/\/+$/, "") : "";
 }
 
-const configuredApiBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
-const hasProductionApiBase = Boolean(configuredApiBaseUrl);
+function getRuntimeEnv(overrideEnv) {
+  return overrideEnv || import.meta.env || {};
+}
+
+function getConfiguredApiBaseUrl(overrideEnv) {
+  return normalizeBaseUrl(getRuntimeEnv(overrideEnv).VITE_API_BASE_URL);
+}
+
+export function isProductionApiConfigured(overrideEnv) {
+  const env = getRuntimeEnv(overrideEnv);
+  return !env.PROD || Boolean(getConfiguredApiBaseUrl(overrideEnv));
+}
+
+export function getProductionApiSetupMessage(overrideEnv) {
+  if (isProductionApiConfigured(overrideEnv)) {
+    return "";
+  }
+
+  return "Live login is not connected yet. Set VITE_API_BASE_URL in GitHub Actions secrets to your deployed backend URL and redeploy the frontend.";
+}
 
 function getDevApiCandidates() {
   if (typeof window === "undefined") return [];
@@ -42,9 +60,11 @@ async function probeApiBaseUrl(candidate) {
 let devApiBaseUrlPromise;
 
 async function resolveDevApiBaseUrl() {
-  if (!import.meta.env.DEV) {
-    return configuredApiBaseUrl || undefined;
+  if (!getRuntimeEnv().DEV) {
+    return getConfiguredApiBaseUrl() || undefined;
   }
+
+  const configuredApiBaseUrl = getConfiguredApiBaseUrl();
 
   if (configuredApiBaseUrl) {
     return configuredApiBaseUrl;
@@ -57,10 +77,11 @@ async function resolveDevApiBaseUrl() {
   return devApiBaseUrlPromise;
 }
 
+const configuredApiBaseUrl = getConfiguredApiBaseUrl();
 export const http = axios.create(configuredApiBaseUrl ? { baseURL: configuredApiBaseUrl } : {});
 
 http.interceptors.request.use(async (config) => {
-  if (!config.baseURL && import.meta.env.DEV && typeof config.url === "string" && config.url.startsWith("/api/")) {
+  if (!config.baseURL && getRuntimeEnv().DEV && typeof config.url === "string" && config.url.startsWith("/api/")) {
     const devApiBaseUrl = await resolveDevApiBaseUrl();
     if (devApiBaseUrl) {
       config.baseURL = devApiBaseUrl;
@@ -81,20 +102,21 @@ export function getApiErrorMessage(error, fallbackMessage = "Request failed") {
   const requestUrl = String(error?.config?.url || "");
   const isApiRequest = requestUrl.startsWith("/api/");
   const publicServiceMessage = "Service is temporarily unavailable. Please try again later.";
+  const env = getRuntimeEnv();
 
-  if (import.meta.env.PROD && !hasProductionApiBase && isApiRequest) {
+  if (env.PROD && !Boolean(getConfiguredApiBaseUrl()) && isApiRequest) {
     return publicServiceMessage;
   }
 
   if (error?.code === "ERR_NETWORK") {
-    if (import.meta.env.PROD) {
+    if (env.PROD) {
       return publicServiceMessage;
     }
     return "Cannot reach the backend API. Start the backend and set VITE_API_BASE_URL if it is not on a local default port.";
   }
 
   if (error?.response?.status === 404 && isApiRequest) {
-    if (import.meta.env.PROD) {
+    if (env.PROD) {
       return publicServiceMessage;
     }
     return "API route not found. Check the backend deployment URL.";

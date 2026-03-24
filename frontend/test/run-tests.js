@@ -1,6 +1,7 @@
 import roleTests from "./roles.test.js";
+import httpTests from "./http.test.js";
 
-const suites = [...roleTests];
+const suites = [...roleTests, ...httpTests];
 
 let failed = 0;
 
