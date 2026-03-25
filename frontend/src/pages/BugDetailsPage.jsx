@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { bugApi } from "../services/bugService";
 import AppIcon from "../components/ui/AppIcon";
 import AiSuggestionPanel from "../components/ui/AiSuggestionPanel";
@@ -9,6 +9,7 @@ import { hasPermission, PERMISSIONS } from "../utils/roles";
 import { userApi } from "../services/userService";
 import { versionApi } from "../services/versionService";
 import { getApiErrorMessage } from "../services/http";
+import { subscribeRealtime, unwatchBug, watchBug } from "../services/realtimeService";
 import * as validationUtils from "../utils/validation";
 
 function hasTrackedVersion(value, trackedVersions = []) {
@@ -61,7 +62,8 @@ function formatFileSize(bytes = 0) {
 
 export default function BugDetailsPage() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, token } = useAuth();
   const [bug, setBug] = useState(null);
   const [comment, setComment] = useState("");
   const [status, setStatus] = useState("Open");
@@ -110,6 +112,45 @@ export default function BugDetailsPage() {
   useEffect(() => {
     load();
   }, [id]);
+
+  useEffect(() => {
+    watchBug(id, token);
+
+    const unsubscribeUpdated = subscribeRealtime(
+      "bug:updated",
+      (payload) => {
+        if (String(payload?.bug?._id) !== String(id)) return;
+
+        const nextBug = payload.bug;
+        setBug(nextBug);
+        setStatus(nextBug.status);
+        setVersionFixed(nextBug.versionFixed || "");
+        setAssignment({
+          assignedTo: nextBug.assignedTo?._id || nextBug.assignedTo || "",
+          deadline: nextBug.deadline ? String(nextBug.deadline).slice(0, 10) : ""
+        });
+      },
+      token
+    );
+
+    const unsubscribeDeleted = subscribeRealtime(
+      "bug:deleted",
+      (payload) => {
+        if (String(payload?.bugId) !== String(id)) return;
+        navigate("/app/bugs", {
+          replace: true,
+          state: { flashMessage: "This bug was removed in another session." }
+        });
+      },
+      token
+    );
+
+    return () => {
+      unsubscribeUpdated();
+      unsubscribeDeleted();
+      unwatchBug(id);
+    };
+  }, [id, navigate, token]);
 
   useEffect(() => {
     Promise.all([userApi.list(), versionApi.list()])

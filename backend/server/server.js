@@ -3,6 +3,7 @@ const cors = require("cors");
 const morgan = require("morgan");
 const dotenv = require("dotenv");
 const path = require("path");
+const http = require("http");
 
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
@@ -15,11 +16,13 @@ const versionRoutes = require("./routes/versionRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const { requireDb } = require("./middleware/dbMiddleware");
 const { getAiProviderStatus } = require("./utils/aiSuggestions");
+const { initializeSocketServer } = require("./utils/socketServer");
 
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 connectDB();
 
 const app = express();
+const server = http.createServer(app);
 app.set("trust proxy", 1);
 
 // Always serve fresh API data to avoid stale 304/cached payloads in UI.
@@ -53,6 +56,8 @@ app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5008;
-app.listen(PORT, () => {
+initializeSocketServer(server);
+
+server.listen(PORT, () => {
   console.log(`BugSense backend running on port ${PORT}`);
 });

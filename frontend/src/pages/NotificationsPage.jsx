@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { notificationApi } from "../services/notificationService";
 import AppIcon from "../components/ui/AppIcon";
+import { useAuth } from "../context/AuthContext";
+import { subscribeRealtime } from "../services/realtimeService";
 
 function getNotificationLabel(type) {
   return String(type || "")
@@ -12,6 +14,7 @@ function getNotificationLabel(type) {
 }
 
 export default function NotificationsPage() {
+  const { token } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -28,6 +31,25 @@ export default function NotificationsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    return subscribeRealtime(
+      "notification:new",
+      (payload) => {
+        if (!payload?._id) return;
+
+        setItems((prev) => {
+          const existing = prev.find((item) => item._id === payload._id);
+          if (existing) {
+            return prev.map((item) => (item._id === payload._id ? payload : item));
+          }
+
+          return [payload, ...prev];
+        });
+      },
+      token
+    );
+  }, [token]);
 
   async function markRead(id) {
     await notificationApi.markRead(id);

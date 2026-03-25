@@ -240,7 +240,10 @@ export default function AppLayout() {
       </main>
 
       <nav className="mobile-bottom-nav" aria-label="Mobile primary navigation">
-        <div className="mobile-bottom-nav__inner">
+        <div
+          className="mobile-bottom-nav__inner"
+          style={{ "--mobile-nav-count": Math.max(mobilePrimaryNavItems.length, 1) }}
+        >
           {mobilePrimaryNavItems.map((item) => (
             <NavLink
               key={item.to}

@@ -8,7 +8,7 @@ function getRuntimeEnv(overrideEnv) {
   return overrideEnv || import.meta.env || {};
 }
 
-function getConfiguredApiBaseUrl(overrideEnv) {
+export function getConfiguredApiBaseUrl(overrideEnv) {
   return normalizeBaseUrl(getRuntimeEnv(overrideEnv).VITE_API_BASE_URL);
 }
 

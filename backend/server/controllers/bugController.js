@@ -9,6 +9,8 @@ const { createNotification } = require("../utils/createNotification");
 const { resolveMentionedUsers } = require("../utils/commentMentions");
 const { buildDuplicateSearchPattern, rankDuplicateCandidates } = require("../utils/duplicateBugDetection");
 const { normalizeBugVersionFields, validateTrackedVersionFields } = require("../utils/versionValidation");
+const { emitToBug, emitToUser } = require("../utils/socketServer");
+const { getBugRealtimePayload } = require("../utils/realtimePayloads");
 
 const AI_RELEVANT_FIELDS = [
   "title",
@@ -26,6 +28,22 @@ const AI_RELEVANT_FIELDS = [
 const BUG_CREATOR_ROLES = new Set(["Admin", "Tester"]);
 const BUG_EDITOR_ROLES = new Set(["Admin", "Developer"]);
 const DEVELOPER_EDITABLE_FIELDS = new Set(["status", "versionFixed"]);
+
+async function emitBugRealtimeEvent(bugId, eventName, extra = {}) {
+  const payload = await getBugRealtimePayload(bugId);
+  if (!payload) return;
+
+  emitToBug(bugId, eventName, { ...extra, bug: payload });
+
+  const watcherIds = new Set([
+    payload.createdBy?._id,
+    payload.assignedTo?._id
+  ].filter(Boolean).map((value) => String(value)));
+
+  watcherIds.forEach((userId) => {
+    emitToUser(userId, "bug:updated", { ...extra, bug: payload });
+  });
+}
 
 function getPublicServerUrl(req) {
   const configuredUrl = String(process.env.SERVER_URL || "").trim().replace(/\/+$/, "");
@@ -173,6 +191,7 @@ async function createBug(req, res, next) {
       metadata: { title: bug.title }
     });
 
+    await emitBugRealtimeEvent(bug._id, "bug:created", { actorId: String(req.user._id) });
     res.status(201).json(bug);
   } catch (err) {
     next(err);
@@ -298,6 +317,10 @@ async function addAttachments(req, res, next) {
       metadata: { count: nextAttachments.length }
     });
 
+    await emitBugRealtimeEvent(bug._id, "bug:updated", {
+      actorId: String(req.user._id),
+      reason: "attachments_added"
+    });
     res.status(201).json({ attachments: bug.attachments });
   } catch (err) {
     next(err);
@@ -392,6 +415,10 @@ async function updateBug(req, res, next) {
     }
 
     await bug.save();
+    await emitBugRealtimeEvent(bug._id, "bug:updated", {
+      actorId: String(req.user._id),
+      reason: payload.status && payload.status !== prevStatus ? "status_updated" : "bug_updated"
+    });
     res.json(bug);
   } catch (err) {
     next(err);
@@ -413,6 +440,10 @@ async function deleteBug(req, res, next) {
       metadata: { title: bug.title }
     });
 
+    emitToBug(bug._id, "bug:deleted", { bugId: String(bug._id), actorId: String(req.user._id) });
+    [bug.createdBy, bug.assignedTo].filter(Boolean).forEach((userId) => {
+      emitToUser(userId, "bug:deleted", { bugId: String(bug._id), actorId: String(req.user._id) });
+    });
     res.json({ message: "Bug deleted" });
   } catch (err) {
     next(err);
@@ -457,6 +488,10 @@ async function assignBug(req, res, next) {
       message: `You have been assigned bug "${bug.title}"`
     });
 
+    await emitBugRealtimeEvent(bug._id, "bug:updated", {
+      actorId: String(req.user._id),
+      reason: "assignment_updated"
+    });
     res.json(bug);
   } catch (err) {
     next(err);
@@ -514,6 +549,10 @@ async function addComment(req, res, next) {
     }
 
     const populated = await doc.populate("userId", "name role");
+    await emitBugRealtimeEvent(bug._id, "bug:updated", {
+      actorId: String(req.user._id),
+      reason: "comment_added"
+    });
     res.status(201).json(populated);
   } catch (err) {
     next(err);

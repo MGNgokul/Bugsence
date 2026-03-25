@@ -1,6 +1,7 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { authApi } from "../services/authService";
 import { normalizeRole } from "../utils/roles";
+import { connectRealtime, disconnectRealtime } from "../services/realtimeService";
 
 const AuthContext = createContext(null);
 
@@ -25,6 +26,7 @@ export function AuthProvider({ children }) {
     setUser(nextUser);
     localStorage.setItem(tokenKey, data.token);
     localStorage.setItem(userKey, JSON.stringify(nextUser));
+    connectRealtime(data.token);
   };
 
   const login = async (email, password) => {
@@ -46,7 +48,15 @@ export function AuthProvider({ children }) {
     setUser(null);
     localStorage.removeItem(tokenKey);
     localStorage.removeItem(userKey);
+    disconnectRealtime();
   };
+
+  useEffect(() => {
+    if (!token) return undefined;
+
+    connectRealtime(token);
+    return undefined;
+  }, [token]);
 
   const value = useMemo(
     () => ({

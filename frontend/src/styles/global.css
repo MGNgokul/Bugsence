@@ -2037,8 +2037,9 @@ a:hover .icon-chip svg {
   width: min(100%, 640px);
   margin-inline: auto;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--mobile-nav-count, 5), minmax(0, 1fr));
   gap: 0.35rem;
+  align-items: end;
 }
 
 .mobile-bottom-nav__item {
