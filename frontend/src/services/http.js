@@ -22,7 +22,7 @@ export function getProductionApiSetupMessage(overrideEnv) {
     return "";
   }
 
-  return "Live login is not connected yet. Set VITE_API_BASE_URL in GitHub Actions secrets to your deployed backend URL and redeploy the frontend.";
+  return "Live login is not connected yet. Set VITE_API_BASE_URL in GitHub Actions secrets or repository variables to your deployed backend URL and redeploy the frontend.";
 }
 
 function getDevApiCandidates() {

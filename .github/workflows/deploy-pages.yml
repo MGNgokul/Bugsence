@@ -18,6 +18,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL != '' && secrets.VITE_API_BASE_URL || vars.VITE_API_BASE_URL }}
     defaults:
       run:
         working-directory: frontend
@@ -38,11 +40,18 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Validate live API configuration
+        run: |
+          if [ -z "$VITE_API_BASE_URL" ]; then
+            echo "Missing VITE_API_BASE_URL. Add it as a GitHub Actions secret or repository variable, then redeploy."
+            exit 1
+          fi
+
       - name: Build frontend
         run: npm run build
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

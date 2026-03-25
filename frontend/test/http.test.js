@@ -6,7 +6,7 @@ export default [
     run: () => {
       const message = getProductionApiSetupMessage({ PROD: true, VITE_API_BASE_URL: "" });
 
-      if (!message.includes("VITE_API_BASE_URL")) {
+      if (!message.includes("VITE_API_BASE_URL") || !message.includes("repository variables")) {
         throw new Error(`Expected deployment hint, received: ${message}`);
       }
     }

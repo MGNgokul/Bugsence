@@ -70,7 +70,7 @@ The repository includes a GitHub Pages workflow for the frontend.
 
 - Push to `main` and GitHub Actions will build `frontend/` and publish it to Pages.
 - The Pages URL will be `https://mgngokul.github.io/Bugsence/`.
-- For API calls to work on the live site, add a repository secret named `VITE_API_BASE_URL` that points to your deployed backend URL.
+- For API calls to work on the live site, add `VITE_API_BASE_URL` in GitHub Actions as either a repository secret or repository variable, and point it to your deployed backend URL.
 - GitHub Pages only hosts the frontend. The Express/MongoDB backend must be deployed separately on a service such as Render, Railway, or a VPS.
 
 ## Full Live Setup
@@ -103,10 +103,12 @@ In Render:
 In GitHub:
 
 1. Open `Settings -> Secrets and variables -> Actions`
-2. Add a repository secret:
-   - Name: `VITE_API_BASE_URL`
-   - Value: `https://your-render-service.onrender.com`
-3. Re-run the `Deploy Frontend to GitHub Pages` workflow or push a new commit.
+2. Add one of these:
+   - Repository secret: `VITE_API_BASE_URL`
+   - Repository variable: `VITE_API_BASE_URL`
+3. Set the value to your deployed backend URL, for example:
+   - `https://your-render-service.onrender.com`
+4. Re-run the `Deploy Frontend to GitHub Pages` workflow or push a new commit.
 
 ### 3. Configure MongoDB
 
